@@ -34,6 +34,7 @@ import NotingModule from './modules/noting/index.js';
 // import PollModule from './modules/poll/index.js';
 import ReminderModule from './modules/reminder/index.js';
 import CheckCustomEmojisModule from './modules/check-custom-emojis/index.js';
+import EarthQuakeWarningModule from './modules/earthquake_warning';
 
 console.log('   __    ____  _____  ___ ');
 console.log('  /__\\  (_  _)(  _  )/ __)');
@@ -95,7 +96,8 @@ promiseRetry(retry => {
 		new NotingModule(),
 		// new PollModule(),
 		new ReminderModule(),
-		new CheckCustomEmojisModule(),
+		new CheckCustomEmojisModule(),,
+		new EarthQuakeWarningModule()
 	]);
 }).catch(e => {
 	log(chalk.red('Failed to fetch the account'));
