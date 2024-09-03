@@ -33,7 +33,7 @@ export default class extends Module {
 			this.ote(msg) ||
 			this.ponkotu(msg) ||
 			this.rmrf(msg) ||
-			this.shutdown(msg)
+			this.shutdown(msg) ||
 			this.sexualharassment(msg) ||
 			this.breathinginai(msg)
 		);
