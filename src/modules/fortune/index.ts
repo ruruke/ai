@@ -6,7 +6,7 @@ import seedrandom from 'seedrandom';
 import { genItem } from '@/vocabulary.js';
 
 export const blessing = [
-	'萌花吉',
+	'藍吉',
 	'ヨタ吉',
 	'ゼタ吉',
 	'エクサ吉',
