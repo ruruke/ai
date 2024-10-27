@@ -16,7 +16,7 @@ export default class extends Module {
     private async mentionHook(msg: Message) {
         console.log('User host:', msg.user.host);
         console.log('User following status:', msg.user.isFollowing);
-        const allowedHosts = ['mi.0il.pw', 'key.0il.pw', 'mstdn.0il.pw', 'sharkey.0il.pw', 'yoiyami.0il.pw'];
+        const allowedHosts = ['mi.0il.pw', 'key.0il.pw', 'mstdn.0il.pw', 'sharkey.0il.pw', 'yoiyami.0il.pw', 'ice.0il.pw'];
 
         if (msg.text && (msg.text.includes('フォロー') || msg.text.includes('フォロバ') || msg.text.includes('follow me'))) {
             if (!msg.user.isFollowing && (msg.user.host == null || allowedHosts.includes(msg.user.host))) {
