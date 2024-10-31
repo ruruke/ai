@@ -17,7 +17,11 @@ type Config = {
 	memoryDir?: string;
 };
 
-import config from '../config.json' assert { type: 'json' };
+// import config from '../config.json' assert { type: 'json' };
+import { readFile } from 'fs/promises';
+const config = JSON.parse(
+  await readFile(new URL('../config.json', import.meta.url))
+);
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';
