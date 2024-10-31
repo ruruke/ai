@@ -15,47 +15,61 @@ export default class extends Module {
     }
 
     @bindThis
-    private async mentionHook(msg: Message) {
-			// Debug?
-			console.log(config.master)
-        // 管理者のホストを確認
-        if (msg.user.username !== config.master) return false;
+    private async mentionHook(msg: Message): Promise<boolean> {
+        try {
+            // マスターユーザーチェック
+            if (!msg.user?.username || msg.user.username !== config.master) {
+                return false;
+            }
 
-        // コマンドが "setLove 10 @username" の形式かどうか確認
-        const setLoveMatch = msg.text?.match(/^setLove (-?\d+) @([\w]+(?:@\w+\.\w+)?)$/);
-        if (setLoveMatch) {
-            const loveAmount = parseInt(setLoveMatch[1], 10);
-            const targetIdentifier = setLoveMatch[2];
+            // メッセージテキストの存在チェック
+            if (!msg.text) {
+                return false;
+            }
 
-            // ローカルユーザーの場合は、ユーザーIDを直接取得
-            const localUserId = targetIdentifier.startsWith('@') ? targetIdentifier.slice(1) : targetIdentifier;
+            // コマンドパターンの検証
+            const setLoveMatch = msg.text.match(/^setLove (-?\d+) @([\w-]+(?:@[\w\.-]+)?)/);
+            if (!setLoveMatch) {
+                return false;
+            }
 
-            // ターゲットユーザーの情報を取得
-            const targetUser = await this.ai.api('users/show', {
-                username: localUserId,
-            });
+            const [, loveAmountStr, targetIdentifier] = setLoveMatch;
+            const loveAmount = parseInt(loveAmountStr, 10);
 
-            // ユーザーがリモートであるかどうかを判定
-            const isRemote = targetIdentifier.includes('@');
-            const targetUserId = isRemote ? targetIdentifier.split('@')[0] : targetUser.id;
+            // ユーザー名の処理
+            const username = targetIdentifier.split('@')[0];
 
-            // ターゲットユーザーが存在しない場合
-            if (!targetUser) {
-                await msg.reply(`ユーザー @${localUserId} が見つかりません。`, { immediate: true });
+            try {
+                // ユーザー情報の取得
+                const targetUser = await this.ai.api('users/show', {
+                    username: username,
+                });
+
+                if (!targetUser) {
+                    await msg.reply(`ユーザー @${username} が見つかりません。`, { immediate: true });
+                    return true;
+                }
+
+                // Friendインスタンスの作成と親愛度の設定
+                const friend = new Friend(this.ai, { user: targetUser });
+                await friend.forceSetLove(loveAmount);
+
+                // 成功メッセージの送信
+                await msg.reply(`@${targetIdentifier} の親愛度を ${loveAmount} に設定しました。`, {
+                    immediate: true
+                });
+                return true;
+
+            } catch (apiError) {
+                console.error('API Error:', apiError);
+                await msg.reply('ユーザー情報の取得中にエラーが発生しました。', { immediate: true });
                 return true;
             }
 
-            // Friendインスタンスを作成
-            const friend = new Friend(this.ai, { user: targetUser });
-            friend.forceSetLove(loveAmount);
-
-            // 確認メッセージを送信
-            await msg.reply(`@${targetIdentifier} の親愛度を ${loveAmount} に設定しました。`, {
-                immediate: true
-            });
+        } catch (error) {
+            console.error('mentionHook Error:', error);
+            await msg.reply('コマンドの処理中にエラーが発生しました。', { immediate: true });
             return true;
         }
-
-        return false;
     }
 }
