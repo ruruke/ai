@@ -52,7 +52,7 @@ export default class extends Module {
 
                 // Friendインスタンスの作成と親愛度の設定
                 const friend = new Friend(this.ai, { user: targetUser });
-                await friend.forceSetLove(loveAmount);
+                await friend.forceSetLove(loveAmount);  // awaitを追加
 
                 // 成功メッセージの送信
                 await msg.reply(`@${targetIdentifier} の親愛度を ${loveAmount} に設定しました。`, {
