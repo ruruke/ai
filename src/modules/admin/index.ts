@@ -16,8 +16,6 @@ export default class extends Module {
 
     @bindThis
     private async mentionHook(msg: Message) {
-			// Debug?
-			console.log(config.master)
         // 管理者のホストを確認
         if (msg.user.username !== config.master) return false;
 
