@@ -8,7 +8,9 @@ import promiseRetry from 'promise-retry';
 import 藍 from './ai.js';
 import config from './config.js';
 import _log from './utils/log.js';
-import pkg from '../package.json' assert { type: 'json' };
+// import pkg from '../package.json' assert { type: 'json' };
+import fs from 'fs';
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url)));
 
 import CoreModule from './modules/core/index.js';
 import TalkModule from './modules/talk/index.js';

@@ -16,7 +16,9 @@ import type { User } from '@/misskey/user.js';
 import Stream from '@/stream.js';
 import log from '@/utils/log.js';
 import { sleep } from './utils/sleep.js';
-import pkg from '../package.json' assert { type: 'json' };
+// import pkg from '../package.json' assert { type: 'json' };
+import fs from 'fs';
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url)));
 
 type MentionHook = (msg: Message) => Promise<boolean | HandlerResult>;
 type ContextHook = (key: any, msg: Message, data?: any) => Promise<void | boolean | HandlerResult>;
