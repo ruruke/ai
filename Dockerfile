@@ -16,6 +16,17 @@ RUN if [ $enable_mecab -ne 0 ]; then apt-get update \
   && echo "dicdir = /usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd/" > /etc/mecabrc \
   && apt-get purge git make curl xz-utils file -y; fi
 
+# canvasモジュールのビルドに必要な依存パッケージを追加
+RUN apt-get update && apt-get install -y \
+  build-essential \
+  libcairo2-dev \
+  libpango1.0-dev \
+  libjpeg-dev \
+  libgif-dev \
+  librsvg2-dev \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY . /ai
 
 WORKDIR /ai
