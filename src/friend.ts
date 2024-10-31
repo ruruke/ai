@@ -150,6 +150,22 @@ export default class Friend {
 	}
 
 	@bindThis
+	public forceSetLove(amount: number) {
+			this.doc.love = amount;
+
+			// 最大 100 に切り詰める（必要な場合）
+			if (this.doc.love > 100) this.doc.love = 100;
+
+			// 最低 -30 に切り詰める（必要な場合）
+			if (this.doc.love < -30) this.doc.love = -30;
+
+			this.save();
+
+			this.ai.log(`💗 ${this.userId} (forced) set to ${amount}`);
+	}
+
+
+	@bindThis
 	public updateName(name: string) {
 		this.doc.name = name;
 		this.save();
