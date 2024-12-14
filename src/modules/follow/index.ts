@@ -1,6 +1,7 @@
 import { bindThis } from '@/decorators.js';
 import Module from '@/module.js';
 import Message from '@/message.js';
+import config from '@/config.js';
 
 export default class extends Module {
     public readonly name = 'follow';
@@ -16,7 +17,7 @@ export default class extends Module {
     private async mentionHook(msg: Message) {
         console.log('User host:', msg.user.host);
         console.log('User following status:', msg.user.isFollowing);
-        const allowedHosts = ['*.0il.pw'];
+        const allowedHosts = config.allowedHosts || [];
 
         if (msg.text && (msg.text.includes('フォロー') || msg.text.includes('フォロバ') || msg.text.includes('follow me'))) {
             if (!msg.user.isFollowing && (msg.user.host == null || this.isHostAllowed(msg.user.host, allowedHosts))) {
