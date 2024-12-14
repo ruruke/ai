@@ -162,47 +162,47 @@ export default class extends Module {
 
 	@bindThis
 	private async mentionHook(msg: Message) {
-		if (!msg.includes([this.name])) {
-			return false;
-		} else {
-			this.log('AiChat requested');
-		}
-
-const question = msg.extractedText
-							.replace(RegExp(this.name, "i");, '')
-							.trim();
-
-		let text:string, aiChat:AiChat;
-		let prompt:string = '';
-		if (config.prompt) {
-			prompt = config.prompt;
-		}
-		// APIキーないよないよ
-		if (!config.geminiApiKey) {
-			msg.reply(serifs.aichat.nothing);
-			return false;
-		}
-		const base64Image:Base64Image|null = await this.note2base64Image(msg.id);
-		aiChat = {
-			question: question,
-			prompt: prompt,
-			api: GEMINI_API_ENDPOINT,
-			key: config.geminiApiKey
-		};
-
-		text = await this.genTextByGemini(aiChat, base64Image);
-
-		if (text == null) {
-			this.log('The result is invalid. It seems that tokens and other items need to be reviewed.')
-			msg.reply(serifs.aichat.error);
-			return false;
-		}
-
-		this.log('Replying...');
-		msg.reply(serifs.aichat.post(text));
-
-		return {
-			reaction: 'like'
-		};
+			if (!msg.includes([this.name])) {
+					return false;
+			} else {
+					this.log('AiChat requested');
+			}
+	
+			const question = msg.extractedText
+													.replace(new RegExp(this.name, "i"), '')
+													.trim();
+	
+			let text:string, aiChat:AiChat;
+			let prompt:string = '';
+			if (config.prompt) {
+					prompt = config.prompt;
+			}
+			// APIキーないよないよ
+			if (!config.geminiApiKey) {
+					msg.reply(serifs.aichat.nothing);
+					return false;
+			}
+			const base64Image:Base64Image|null = await this.note2base64Image(msg.id);
+			aiChat = {
+					question: question,
+					prompt: prompt,
+					api: GEMINI_API_ENDPOINT,
+					key: config.geminiApiKey
+			};
+	
+			text = await this.genTextByGemini(aiChat, base64Image);
+	
+			if (text == null) {
+					this.log('The result is invalid. It seems that tokens and other items need to be reviewed.')
+					msg.reply(serifs.aichat.error);
+					return false;
+			}
+	
+			this.log('Replying...');
+			msg.reply(serifs.aichat.post(text));
+	
+			return {
+					reaction: 'like'
+			};
 	}
 }
