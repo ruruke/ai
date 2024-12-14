@@ -5,6 +5,7 @@ import Message from '@/message.js';
 import config from '@/config.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import got from 'got';
+import { Note } from '@/misskey/note.js';
 
 type AiChat = {
 	question: string;
@@ -16,15 +17,14 @@ type Base64Image = {
 	type: string;
 	base64: string;
 };
-const GEMINI_15_FLASH_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-const GEMINI_15_PRO_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
-const PLAMO_API = 'https://platform.preferredai.jp/api/completion/v1/chat/completions';
+const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
 export default class extends Module {
 	public readonly name = 'aichat';
 
 	@bindThis
 	public install() {
+		setInterval(this.replyLocalTimelineNotes, 1000 * 60 * 60);
 		return {
 			mentionHook: this.mentionHook
 		};
@@ -49,7 +49,7 @@ export default class extends Module {
 				},
 			];
 		}
-		let options = {
+		let options: any = {
 			url: aiChat.api,
 			searchParams: {
 				key: aiChat.key,
@@ -87,49 +87,8 @@ export default class extends Module {
 	}
 
 	@bindThis
-	private async genTextByPLaMo(aiChat: AiChat) {
-		this.log('Generate Text By PLaMo...');
-
-		let options = {
-			url: aiChat.api,
-			headers: {
-				Authorization: 'Bearer ' + aiChat.key
-			},
-			json: {
-				model: 'plamo-beta',
-				messages: [
-					{role: 'system', content: aiChat.prompt},
-					{role: 'user', content: aiChat.question},
-				],
-			},
-		};
-		this.log(JSON.stringify(options));
-		let res_data:any = null;
-		try {
-			res_data = await got.post(options,
-				{parseJson: res => JSON.parse(res)}).json();
-			this.log(JSON.stringify(res_data));
-			if (res_data.hasOwnProperty('choices')) {
-				if (res_data.choices.length > 0) {
-					if (res_data.choices[0].hasOwnProperty('message')) {
-						if (res_data.choices[0].message.hasOwnProperty('content')) {
-							return res_data.choices[0].message.content;
-						}
-					}
-				}
-			}
-		} catch (err: unknown) {
-			this.log('Error By Call PLaMo');
-			if (err instanceof Error) {
-				this.log(`${err.name}\n${err.message}\n${err.stack}`);
-			}
-		}
-		return null;
-	}
-
-	@bindThis
 	private async note2base64Image(notesId: string) {
-		const noteData = await this.ai.api('notes/show', { noteId: notesId });
+		const noteData: any = await this.ai!.api('notes/show', { noteId: notesId });
 		let fileType: string | undefined,thumbnailUrl: string | undefined;
 		if (noteData !== null && noteData.hasOwnProperty('files')) {
 			if (noteData.files.length > 0) {
@@ -156,6 +115,52 @@ export default class extends Module {
 	}
 
 	@bindThis
+	private async replyLocalTimelineNotes() {
+		const tl = await this.ai?.api('notes/local-timeline', {
+			limit: 30
+		}) as Note[];
+
+		const interestedNotes = tl.filter(note =>
+			note.userId !== this.ai?.account.id &&
+			note.text != null &&
+			note.cw == null);
+		
+		// interestedNotesからランダムなノートを選択
+		const rnd = Math.floor(Math.random() * interestedNotes.length);
+		const note = interestedNotes[rnd];
+		//const note = interestedNotes[0];
+
+		let text:string, aiChat:AiChat;
+		let prompt:string = '';
+		if (config.prompt) {
+			prompt = config.prompt;
+		}
+		// APIキーないよないよ
+		if (!config.geminiApiKey) return false;
+		
+		const base64Image:Base64Image|null = await this.note2base64Image(note.id);
+		aiChat = {
+			question: note.text!,
+			prompt: prompt,
+			api: GEMINI_API_ENDPOINT,
+			key: config.geminiApiKey
+		};
+
+		text = await this.genTextByGemini(aiChat, base64Image);
+
+		if (text == null) {
+			this.log('The result is invalid. It seems that tokens and other items need to be reviewed.')
+			return false;
+		}
+
+		this.log('Replying...');
+		this.ai?.post({
+			text: serifs.aichat.post(text),
+			replyId: note.id
+		});
+	}
+
+	@bindThis
 	private async mentionHook(msg: Message) {
 		if (!msg.includes([this.name])) {
 			return false;
@@ -163,22 +168,8 @@ export default class extends Module {
 			this.log('AiChat requested');
 		}
 
-		const kigo = '&';
-		let type = 'gemini';
-		if (msg.includes([kigo + 'gemini'])) {
-			type = 'gemini';
-		} else if (msg.includes([kigo + 'chatgpt4'])) {
-			type = 'chatgpt4';
-		} else if (msg.includes([kigo + 'chatgpt'])) {
-			type = 'chatgpt3.5';
-		} else if (msg.includes([kigo + 'plamo'])) {
-			type = 'plamo';
-		}
-		const reName = RegExp(this.name, "i");
-		const reKigoType = RegExp(kigo + type, "i");
-		const question = msg.extractedText
-							.replace(reName, '')
-							.replace(reKigoType, '')
+const question = msg.extractedText
+							.replace(RegExp(this.name, "i");, '')
 							.trim();
 
 		let text:string, aiChat:AiChat;
@@ -186,54 +177,29 @@ export default class extends Module {
 		if (config.prompt) {
 			prompt = config.prompt;
 		}
-		switch(type) {
-			case 'gemini':
-				// geminiの場合、APIキーが必須
-				if (!config.geminiProApiKey) {
-					msg.reply(serifs.aichat.nothing(type));
-					return false;
-				}
-				const base64Image:Base64Image|null = await this.note2base64Image(msg.id);
-				aiChat = {
-					question: question,
-					prompt: prompt,
-					api: GEMINI_15_PRO_API,
-					key: config.geminiProApiKey
-				};
-				if (msg.includes([kigo + 'gemini-flash'])) {
-					aiChat.api = GEMINI_15_FLASH_API;
-				}
-				text = await this.genTextByGemini(aiChat, base64Image);
-				break;
-
-			case 'PLaMo':
-				// PLaMoの場合、APIキーが必須
-				if (!config.pLaMoApiKey) {
-					msg.reply(serifs.aichat.nothing(type));
-					return false;
-				}
-				aiChat = {
-					question: question,
-					prompt: prompt,
-					api: PLAMO_API,
-					key: config.pLaMoApiKey
-				};
-				text = await this.genTextByPLaMo(aiChat);
-				break;
-
-				default:
-				msg.reply(serifs.aichat.nothing(type));
-				return false;
+		// APIキーないよないよ
+		if (!config.geminiApiKey) {
+			msg.reply(serifs.aichat.nothing);
+			return false;
 		}
+		const base64Image:Base64Image|null = await this.note2base64Image(msg.id);
+		aiChat = {
+			question: question,
+			prompt: prompt,
+			api: GEMINI_API_ENDPOINT,
+			key: config.geminiApiKey
+		};
+
+		text = await this.genTextByGemini(aiChat, base64Image);
 
 		if (text == null) {
 			this.log('The result is invalid. It seems that tokens and other items need to be reviewed.')
-			msg.reply(serifs.aichat.error(type));
+			msg.reply(serifs.aichat.error);
 			return false;
 		}
 
 		this.log('Replying...');
-		msg.reply(serifs.aichat.post(text, type));
+		msg.reply(serifs.aichat.post(text));
 
 		return {
 			reaction: 'like'
