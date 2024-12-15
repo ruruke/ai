@@ -114,7 +114,8 @@ export default class extends Module {
             note.userId !== this.ai?.account.id &&
             note.text != null &&
             note.cw == null &&
-            (await this.ai?.api('notes/show', { noteId: note.id }) as Note).reply !== null
+            (await this.ai?.api('notes/show', { noteId: note.id }) as Note).reply !== null &&
+						(note.visibility === 'public' || note.visibility === 'home')
         );
 
         const rnd = Math.floor(Math.random() * interestedNotes.length);
