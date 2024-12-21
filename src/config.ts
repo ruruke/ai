@@ -17,6 +17,7 @@ type Config = {
 	mecab?: string;
 	mecabDic?: string;
 	memoryDir?: string;
+	followAllowedHosts?: string[];
 };
 
 // import config from '../config.json' assert { type: 'json' };
