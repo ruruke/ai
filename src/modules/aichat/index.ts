@@ -104,48 +104,59 @@ export default class extends Module {
         return null;
     }
 
-    @bindThis
-    private async replySocialTimelineNotes() {
-        const tl = await this.ai?.api('notes/hybrid-timeline', {
-            limit: 10
-        }) as Note[];
+		@bindThis
+		private async replySocialTimelineNotes() {
+				const tl = await this.ai?.api('notes/hybrid-timeline', {
+								limit: 10
+				}) as Note[];
 
-        const interestedNotes = tl.filter(async note =>
-            note.userId !== this.ai?.account.id &&
-            note.text != null &&
-            note.cw == null &&
-            (await this.ai?.api('notes/show', { noteId: note.id }) as Note).reply !== null &&
-						(note.visibility === 'public' || note.visibility === 'home')
-        );
+				const interestedNotes = await Promise.all(
+								tl.map(async note => {
+												const noteDetails = await this.ai?.api('notes/show', { noteId: note.id }) as Note;
+												const relation = await this.ai?.api('users/relation', { userId: note.userId }) as any;
+												return {
+																note,
+																isInterested:
+																				note.userId !== this.ai?.account.id &&
+																				note.text != null &&
+																				note.cw == null &&
+																				noteDetails.reply !== null &&
+																				(note.visibility === 'public' || note.visibility === 'home') &&
+																				relation?.isFollowing
+												};
+								})
+				).then(results => results.filter(r => r.isInterested).map(r => r.note));
 
-        const rnd = Math.floor(Math.random() * interestedNotes.length);
-        const note = interestedNotes[rnd];
+				if (interestedNotes.length === 0) return false;
 
-        if (!config.geminiApiKey) return false;
+				const rnd = Math.floor(Math.random() * interestedNotes.length);
+				const note = interestedNotes[rnd];
 
-        const prompt = config.prompt || '';
-        const base64Image = await this.note2base64Image(note.id);
+				if (!config.geminiApiKey) return false;
 
-        const aiChat = {
-            question: note.text!,
-            prompt: prompt,
-            api: GEMINI_API_ENDPOINT,
-            key: config.geminiApiKey
-        };
+				const prompt = config.prompt || '';
+				const base64Image = await this.note2base64Image(note.id);
 
-        const text = await this.genTextByGemini(aiChat, base64Image);
+				const aiChat = {
+						question: note.text!,
+						prompt: prompt,
+						api: GEMINI_API_ENDPOINT,
+						key: config.geminiApiKey
+				};
 
-        if (text == null) {
-            this.log('The result is invalid. It seems that tokens and other items need to be reviewed.');
-            return false;
-        }
+				const text = await this.genTextByGemini(aiChat, base64Image);
 
-        this.log('Replying...');
-        this.ai?.post({
-            text: serifs.aichat.post(text),
-            replyId: note.id
-        });
-    }
+				if (text == null) {
+						this.log('The result is invalid. It seems that tokens and other items need to be reviewed.');
+						return false;
+				}
+
+				this.log('Replying...');
+				this.ai?.post({
+						text: serifs.aichat.post(text),
+						replyId: note.id
+				});
+		}
 
     @bindThis
     private async mentionHook(msg: Message) {
@@ -157,6 +168,13 @@ export default class extends Module {
             )
         ) {
             this.log('AiChat requested');
+
+						const relation = await this.ai?.api('users/relation', { userId: msg.userId });
+						if (!relation?.isFollowing) {
+								this.log('The user is not following me:' + msg.userId);
+								msg.reply('あなたはaichatを実行する権限がありません。');
+								return false;
+						}
         } else {
             return false;
         }
