@@ -122,7 +122,7 @@ export default class extends Module {
 																				note.cw == null &&
 																				noteDetails.reply !== null &&
 																				(note.visibility === 'public' || note.visibility === 'home') &&
-																				relation?.isFollowing
+																				relation?.[0]?.isFollowing
 												};
 								})
 				).then(results => results.filter(r => r.isInterested).map(r => r.note));
@@ -169,8 +169,9 @@ export default class extends Module {
         ) {
             this.log('AiChat requested');
 
-						const relation = await this.ai?.api('users/relation', { userId: msg.userId });
-						if (!relation?.isFollowing) {
+						const relation = await this.ai?.api('users/relation', { userId: msg.userId }) as any[];
+
+						if (!relation?.[0]?.isFollowing) {
 								this.log('The user is not following me:' + msg.userId);
 								msg.reply('あなたはaichatを実行する権限がありません。');
 								return false;
