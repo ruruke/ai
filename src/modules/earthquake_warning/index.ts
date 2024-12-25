@@ -20,6 +20,7 @@ export default class extends Module {
 
 	@bindThis
 	public install() {
+		request.defaults.timeout = 10000;
     this.do_init()
       .then(()=>{
         setInterval(()=>{
@@ -42,7 +43,6 @@ export default class extends Module {
       console.error('Max error retries exceeded. Stopping earthquake warning module.');
       // Optionally send an alert or log
       this.putmsg('地震警報モジュールで継続的なエラーが発生しています。');
-      return;
     }
 
     // Reset error count after cooldown
