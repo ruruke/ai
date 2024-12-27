@@ -14,6 +14,7 @@ type Config = {
 	checkEmojisAtOnce?: boolean;
 	geminiApiKey?: string;
 	prompt?: string;
+	replayPrompt?: string;
 	mecab?: string;
 	mecabDic?: string;
 	memoryDir?: string;

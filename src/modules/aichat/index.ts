@@ -165,45 +165,56 @@ export default class extends Module {
 				});
 		}
 
-    @bindThis
-    private async mentionHook(msg: Message) {
-        if (
-            msg.includes([this.name]) ||
-            (
-                (await this.ai?.api('notes/show', { noteId: msg.replyId }) as Note)?.userId === this.ai?.account.id &&
-                (await this.ai?.api('notes/show', { noteId: msg.replyId }) as Note).text?.includes(this.name)
-            )
-        ) {
-            this.log('AiChat requested');
-
+		@bindThis
+		private async mentionHook(msg: Message) {
+				if (
+						msg.includes([this.name]) ||
+						(
+								(await this.ai?.api('notes/show', { noteId: msg.replyId }) as Note)?.userId === this.ai?.account.id &&
+								(await this.ai?.api('notes/show', { noteId: msg.replyId }) as Note).text?.includes(this.name)
+						)
+				) {
+						this.log('AiChat requested');
 						const relation = await this.ai?.api('users/relation', { userId: msg.userId }) as any[];
-
 						if (!relation?.[0]?.isFollowing) {
 								this.log('The user is not following me:' + msg.userId);
 								msg.reply('あなたはaichatを実行する権限がありません。');
 								return false;
 						}
-        } else {
-            return false;
-        }
+				} else {
+						return false;
+				}
 
-        const question = msg.extractedText
-            .replace(new RegExp(this.name, "i"), '')
-            .trim();
+				let question = msg.extractedText
+					.replace(new RegExp(this.name, "i"), '')
+					.trim();
 
-        if (!config.geminiApiKey) {
-            msg.reply(serifs.aichat.nothing);
-            return false;
-        }
+				let prompt = config.prompt || '';
+				let replayPrompt = config.replayPrompt || '';
 
-        let prompt = config.prompt || '';
+				// ユーザー名の置換を先に行う
 				try {
-						const userData = await this.ai?.api('users/show', { userId: msg.userId });
-						const name = userData?.name || userData?.username || '名無し';
-						prompt = prompt.replace('{name}', name);
+					const userData = await this.ai?.api('users/show', { userId: msg.userId });
+					const name = userData?.name || userData?.username || '名無し';
+					prompt = prompt.replace('{name}', name);
 				} catch (err: unknown) {
 						this.log('Failed to get user data for name replacement.');
 				}
+
+				// 返信先の処理とプロンプトの連結
+				if (msg.replyId) {
+						const parentNote = await this.ai?.api('notes/show', { noteId: msg.replyId }) as Note;
+						if (parentNote?.userId === this.ai?.account.id && parentNote.text) {
+								// 親メッセージが自分の場合、replayPromptを使用
+								question = replayPrompt + parentNote.text + '\n' + question;
+						}
+				}
+
+				if (!config.geminiApiKey) {
+						msg.reply(serifs.aichat.nothing);
+						return false;
+				}
+
         const base64Image = await this.note2base64Image(msg.id);
 
         const aiChat = {
