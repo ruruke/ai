@@ -6,7 +6,7 @@ export type Color = boolean;
 const BLACK = true;
 const WHITE = false;
 
-export type MapCell = 'null' | 'empty';
+export type MapCell = "null" | "empty";
 
 export type Options = {
 	isLlotheo: boolean;
@@ -54,23 +54,30 @@ export class Game {
 		//#region Parse map data
 		this.mapWidth = map[0].length;
 		this.mapHeight = map.length;
-		const mapData = map.join('');
+		const mapData = map.join("");
 
-		this.board = mapData.split('').map(d => d === '-' ? null : d === 'b' ? BLACK : d === 'w' ? WHITE : undefined);
+		this.board = mapData
+			.split("")
+			.map((d) =>
+				d === "-" ? null : d === "b" ? BLACK : d === "w" ? WHITE : undefined,
+			);
 
-		this.map = mapData.split('').map(d => d === '-' || d === 'b' || d === 'w' ? 'empty' : 'null');
+		this.map = mapData
+			.split("")
+			.map((d) => (d === "-" || d === "b" || d === "w" ? "empty" : "null"));
 		//#endregion
 
 		// ゲームが始まった時点で片方の色の石しかないか、始まった時点で勝敗が決定するようなマップの場合がある
-		if (!this.canPutSomewhere(BLACK)) this.turn = this.canPutSomewhere(WHITE) ? WHITE : null;
+		if (!this.canPutSomewhere(BLACK))
+			this.turn = this.canPutSomewhere(WHITE) ? WHITE : null;
 	}
 
 	public get blackCount() {
-		return this.board.filter(x => x === BLACK).length;
+		return this.board.filter((x) => x === BLACK).length;
 	}
 
 	public get whiteCount() {
-		return this.board.filter(x => x === WHITE).length;
+		return this.board.filter((x) => x === WHITE).length;
 	}
 
 	public posToXy(pos: number): number[] {
@@ -80,7 +87,7 @@ export class Game {
 	}
 
 	public xyToPos(x: number, y: number): number {
-		return x + (y * this.mapWidth);
+		return x + y * this.mapWidth;
 	}
 
 	public putStone(pos: number) {
@@ -114,10 +121,11 @@ export class Game {
 
 	private calcTurn() {
 		// ターン計算
-		this.turn =
-			this.canPutSomewhere(!this.prevColor) ? !this.prevColor :
-			this.canPutSomewhere(this.prevColor!) ? this.prevColor :
-			null;
+		this.turn = this.canPutSomewhere(!this.prevColor)
+			? !this.prevColor
+			: this.canPutSomewhere(this.prevColor!)
+				? this.prevColor
+				: null;
 	}
 
 	public undo() {
@@ -134,11 +142,13 @@ export class Game {
 
 	public mapDataGet(pos: number): MapCell {
 		const [x, y] = this.posToXy(pos);
-		return x < 0 || y < 0 || x >= this.mapWidth || y >= this.mapHeight ? 'null' : this.map[pos];
+		return x < 0 || y < 0 || x >= this.mapWidth || y >= this.mapHeight
+			? "null"
+			: this.map[pos];
 	}
 
 	public getPuttablePlaces(color: Color): number[] {
-		return Array.from(this.board.keys()).filter(i => this.canPut(color, i));
+		return Array.from(this.board.keys()).filter((i) => this.canPut(color, i));
 	}
 
 	public canPutSomewhere(color: Color): boolean {
@@ -146,10 +156,11 @@ export class Game {
 	}
 
 	public canPut(color: Color, pos: number): boolean {
-		return (
-			this.board[pos] !== null ? false : // 既に石が置いてある場所には打てない
-			this.opts.canPutEverywhere ? this.mapDataGet(pos) === 'empty' : // 挟んでなくても置けるモード
-			this.effects(color, pos).length !== 0); // 相手の石を1つでも反転させられるか
+		return this.board[pos] !== null
+			? false // 既に石が置いてある場所には打てない
+			: this.opts.canPutEverywhere
+				? this.mapDataGet(pos) === "empty" // 挟んでなくても置けるモード
+				: this.effects(color, pos).length !== 0; // 相手の石を1つでも反転させられるか
 	}
 
 	/**
@@ -172,7 +183,10 @@ export class Game {
 		];
 
 		const effectsInLine = ([dx, dy]: [number, number]): number[] => {
-			const nextPos = (x: number, y: number): [number, number] => [x + dx, y + dy];
+			const nextPos = (x: number, y: number): [number, number] => [
+				x + dx,
+				y + dy,
+			];
 
 			const found: number[] = []; // 挟めるかもしれない相手の石を入れておく配列
 			let [x, y] = this.posToXy(initPos);
@@ -180,15 +194,25 @@ export class Game {
 				[x, y] = nextPos(x, y);
 
 				// 座標が指し示す位置がボード外に出たとき
-				if (this.opts.loopedBoard && this.xyToPos(
-					(x = ((x % this.mapWidth) + this.mapWidth) % this.mapWidth),
-					(y = ((y % this.mapHeight) + this.mapHeight) % this.mapHeight)) === initPos) {
+				if (
+					this.opts.loopedBoard &&
+					this.xyToPos(
+						(x = ((x % this.mapWidth) + this.mapWidth) % this.mapWidth),
+						(y = ((y % this.mapHeight) + this.mapHeight) % this.mapHeight),
+					) === initPos
+				) {
 					// 盤面の境界でループし、自分が石を置く位置に戻ってきたとき、挟めるようにしている (ref: Test4のマップ)
 					return found;
-				} else if (x === -1 || y === -1 || x === this.mapWidth || y === this.mapHeight) return []; // 挟めないことが確定 (盤面外に到達)
+				} else if (
+					x === -1 ||
+					y === -1 ||
+					x === this.mapWidth ||
+					y === this.mapHeight
+				)
+					return []; // 挟めないことが確定 (盤面外に到達)
 
 				const pos = this.xyToPos(x, y);
-				if (this.mapDataGet(pos) === 'null') return []; // 挟めないことが確定 (配置不可能なマスに到達)
+				if (this.mapDataGet(pos) === "null") return []; // 挟めないことが確定 (配置不可能なマスに到達)
 				const stone = this.board[pos];
 				if (stone === null) return []; // 挟めないことが確定 (石が置かれていないマスに到達)
 				if (stone === enemyColor) found.push(pos); // 挟めるかもしれない (相手の石を発見)
@@ -204,9 +228,12 @@ export class Game {
 	}
 
 	public get winner(): Color | null {
-		return this.isEnded ?
-			this.blackCount === this.whiteCount ? null :
-			this.opts.isLlotheo === this.blackCount > this.whiteCount ? WHITE : BLACK :
-			undefined as never;
+		return this.isEnded
+			? this.blackCount === this.whiteCount
+				? null
+				: this.opts.isLlotheo === this.blackCount > this.whiteCount
+					? WHITE
+					: BLACK
+			: (undefined as never);
 	}
 }

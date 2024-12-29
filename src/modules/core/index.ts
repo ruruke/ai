@@ -1,19 +1,19 @@
-import { bindThis } from '@/decorators.js';
-import Module from '@/module.js';
-import Message from '@/message.js';
-import serifs from '@/serifs.js';
-import { safeForInterpolate } from '@/utils/safe-for-interpolate.js';
+import { bindThis } from "@/decorators.js";
+import Module from "@/module.js";
+import Message from "@/message.js";
+import serifs from "@/serifs.js";
+import { safeForInterpolate } from "@/utils/safe-for-interpolate.js";
 
-const titles = ['さん', 'くん', '君', 'ちゃん', '様', '先生'];
+const titles = ["さん", "くん", "君", "ちゃん", "様", "先生"];
 
 export default class extends Module {
-	public readonly name = 'core';
+	public readonly name = "core";
 
 	@bindThis
 	public install() {
 		return {
 			mentionHook: this.mentionHook,
-			contextHook: this.contextHook
+			contextHook: this.contextHook,
 		};
 	}
 
@@ -31,9 +31,9 @@ export default class extends Module {
 	}
 
 	@bindThis
-	private transferBegin(msg: Message): boolean  {
+	private transferBegin(msg: Message): boolean {
 		if (!msg.text) return false;
-		if (!msg.includes(['引継', '引き継ぎ', '引越', '引っ越し'])) return false;
+		if (!msg.includes(["引継", "引き継ぎ", "引越", "引っ越し"])) return false;
 
 		const code = msg.friend.generateTransferCode();
 
@@ -43,9 +43,9 @@ export default class extends Module {
 	}
 
 	@bindThis
-	private transferEnd(msg: Message): boolean  {
+	private transferEnd(msg: Message): boolean {
 		if (!msg.text) return false;
-		if (!msg.text.startsWith('「') || !msg.text.endsWith('」')) return false;
+		if (!msg.text.startsWith("「") || !msg.text.endsWith("」")) return false;
 
 		const code = msg.text.substring(1, msg.text.length - 1);
 
@@ -61,10 +61,10 @@ export default class extends Module {
 	}
 
 	@bindThis
-	private setName(msg: Message): boolean  {
+	private setName(msg: Message): boolean {
 		if (!msg.text) return false;
-		if (!msg.text.includes('って呼んで')) return false;
-		if (msg.text.startsWith('って呼んで')) return false;
+		if (!msg.text.includes("って呼んで")) return false;
+		if (msg.text.startsWith("って呼んで")) return false;
 
 		const name = msg.text.match(/^(.+?)って呼んで/g)![1];
 
@@ -78,15 +78,15 @@ export default class extends Module {
 			return true;
 		}
 
-		const withSan = titles.some(t => name.endsWith(t));
+		const withSan = titles.some((t) => name.endsWith(t));
 
 		if (withSan) {
 			msg.friend.updateName(name);
 			msg.reply(serifs.core.setNameOk(name));
 		} else {
-			msg.reply(serifs.core.san).then(reply => {
+			msg.reply(serifs.core.san).then((reply) => {
 				this.subscribeReply(msg.userId, reply.id, {
-					name: name
+					name: name,
 				});
 			});
 		}
@@ -95,32 +95,32 @@ export default class extends Module {
 	}
 
 	@bindThis
-	private modules(msg: Message): boolean  {
+	private modules(msg: Message): boolean {
 		if (!msg.text) return false;
-		if (!msg.or(['modules'])) return false;
+		if (!msg.or(["modules"])) return false;
 
-		let text = '```\n';
+		let text = "```\n";
 
 		for (const m of this.ai.modules) {
 			text += `${m.name}\n`;
 		}
 
-		text += '```';
+		text += "```";
 
 		msg.reply(text, {
-			immediate: true
+			immediate: true,
 		});
 
 		return true;
 	}
 
 	@bindThis
-	private version(msg: Message): boolean  {
+	private version(msg: Message): boolean {
 		if (!msg.text) return false;
-		if (!msg.or(['v', 'version', 'バージョン'])) return false;
+		if (!msg.or(["v", "version", "バージョン"])) return false;
 
 		msg.reply(`\`\`\`\nv${this.ai.version}\n\`\`\``, {
-			immediate: true
+			immediate: true,
 		});
 
 		return true;
@@ -135,14 +135,14 @@ export default class extends Module {
 			this.unsubscribeReply(key);
 		};
 
-		if (msg.text.includes('はい')) {
-			msg.friend.updateName(data.name + 'さん');
+		if (msg.text.includes("はい")) {
+			msg.friend.updateName(data.name + "さん");
 			done();
-		} else if (msg.text.includes('いいえ')) {
+		} else if (msg.text.includes("いいえ")) {
 			msg.friend.updateName(data.name);
 			done();
 		} else {
-			msg.reply(serifs.core.yesOrNo).then(reply => {
+			msg.reply(serifs.core.yesOrNo).then((reply) => {
 				this.subscribeReply(msg.userId, reply.id, data);
 			});
 		}

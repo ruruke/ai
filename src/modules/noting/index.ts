@@ -1,21 +1,24 @@
-import { bindThis } from '@/decorators.js';
-import Module from '@/module.js';
-import serifs from '@/serifs.js';
-import { genItem } from '@/vocabulary.js';
-import config from '@/config.js';
+import { bindThis } from "@/decorators.js";
+import Module from "@/module.js";
+import serifs from "@/serifs.js";
+import { genItem } from "@/vocabulary.js";
+import config from "@/config.js";
 
 export default class extends Module {
-	public readonly name = 'noting';
+	public readonly name = "noting";
 
 	@bindThis
 	public install() {
 		if (config.notingEnabled === false) return {};
 
-		setInterval(() => {
-			if (Math.random() < 0.04) {
-				this.post();
-			}
-		}, 1000 * 60 * 10);
+		setInterval(
+			() => {
+				if (Math.random() < 0.04) {
+					this.post();
+				}
+			},
+			1000 * 60 * 10,
+		);
 
 		return {};
 	}
@@ -43,7 +46,7 @@ export default class extends Module {
 		// TODO: 季節に応じたセリフ
 
 		this.ai.post({
-			text: typeof note === 'function' ? note() : note
+			text: typeof note === "function" ? note() : note,
 		});
 	}
 }

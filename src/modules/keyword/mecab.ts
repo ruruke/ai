@@ -1,8 +1,8 @@
-import { spawn } from 'child_process';
-import * as util from 'util';
-import * as stream from 'stream';
-import * as memoryStreams from 'memory-streams';
-import { EOL } from 'os';
+import { spawn } from "child_process";
+import * as util from "util";
+import * as stream from "stream";
+import * as memoryStreams from "memory-streams";
+import { EOL } from "os";
 
 const pipeline = util.promisify(stream.pipeline);
 
@@ -12,18 +12,22 @@ const pipeline = util.promisify(stream.pipeline);
  * @param mecab mecab bin
  * @param dic mecab dictionaly path
  */
-export async function mecab(text: string, mecab = 'mecab', dic?: string): Promise<string[][]> {
+export async function mecab(
+	text: string,
+	mecab = "mecab",
+	dic?: string,
+): Promise<string[][]> {
 	const args: string[] = [];
-	if (dic) args.push('-d', dic);
+	if (dic) args.push("-d", dic);
 
-	const lines = await cmd(mecab, args, `${text.replace(/[\n\s\t]/g, ' ')}\n`);
+	const lines = await cmd(mecab, args, `${text.replace(/[\n\s\t]/g, " ")}\n`);
 
 	const results: string[][] = [];
 
 	for (const line of lines) {
-		if (line === 'EOS') break;
-		const [word, value = ''] = line.split('\t');
-		const array = value.split(',');
+		if (line === "EOS") break;
+		const [word, value = ""] = line.split("\t");
+		const array = value.split(",");
 		array.unshift(word);
 		results.push(array);
 	}
@@ -31,7 +35,11 @@ export async function mecab(text: string, mecab = 'mecab', dic?: string): Promis
 	return results;
 }
 
-export async function cmd(command: string, args: string[], stdin: string): Promise<string[]> {
+export async function cmd(
+	command: string,
+	args: string[],
+	stdin: string,
+): Promise<string[]> {
 	const mecab = spawn(command, args);
 
 	const writable = new memoryStreams.WritableStream();

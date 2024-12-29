@@ -1,4 +1,4 @@
-import { createCanvas, registerFont } from 'canvas';
+import { createCanvas, registerFont } from "canvas";
 
 const width = 1024 + 256;
 const height = 512 + 256;
@@ -9,16 +9,10 @@ const lineWidth = 16;
 const yAxisThickness = 2;
 
 const colors = {
-	bg: '#434343',
-	text: '#e0e4cc',
-	yAxis: '#5a5a5a',
-	dataset: [
-		'#ff4e50',
-		'#c2f725',
-		'#69d2e7',
-		'#f38630',
-		'#f9d423',
-	]
+	bg: "#434343",
+	text: "#e0e4cc",
+	yAxis: "#5a5a5a",
+	dataset: ["#ff4e50", "#c2f725", "#69d2e7", "#f38630", "#f9d423"],
 };
 
 const yAxisTicks = 4;
@@ -32,11 +26,11 @@ type Chart = {
 };
 
 export function renderChart(chart: Chart) {
-	registerFont('./font.ttf', { family: 'CustomFont' });
+	registerFont("./font.ttf", { family: "CustomFont" });
 
 	const canvas = createCanvas(width, height);
-	const ctx = canvas.getContext('2d');
-	ctx.antialias = 'default';
+	const ctx = canvas.getContext("2d");
+	ctx.antialias = "default";
 
 	ctx.fillStyle = colors.bg;
 	ctx.beginPath();
@@ -44,15 +38,15 @@ export function renderChart(chart: Chart) {
 
 	let chartAreaX = margin;
 	let chartAreaY = margin;
-	let chartAreaWidth = width - (margin * 2);
-	let chartAreaHeight = height - (margin * 2);
+	let chartAreaWidth = width - margin * 2;
+	let chartAreaHeight = height - margin * 2;
 
 	// Draw title
 	if (chart.title) {
 		ctx.font = `${titleTextSize}px CustomFont`;
 		const t = ctx.measureText(chart.title);
 		ctx.fillStyle = colors.text;
-		ctx.fillText(chart.title, (width / 2) - (t.width / 2), 128);
+		ctx.fillText(chart.title, width / 2 - t.width / 2, 128);
 
 		chartAreaY += titleTextSize;
 		chartAreaHeight -= titleTextSize;
@@ -81,7 +75,7 @@ export function renderChart(chart: Chart) {
 
 	// Draw Y axis
 	ctx.lineWidth = yAxisThickness;
-	ctx.lineCap = 'round';
+	ctx.lineCap = "round";
 	ctx.strokeStyle = colors.yAxis;
 	for (let i = 0; i < yAxisSteps.length; i++) {
 		const step = yAxisSteps[yAxisSteps.length - i - 1];
@@ -91,7 +85,7 @@ export function renderChart(chart: Chart) {
 		ctx.lineTo(chartAreaX + chartAreaWidth, chartAreaY + y);
 		ctx.stroke();
 
-		ctx.font = '20px CustomFont';
+		ctx.font = "20px CustomFont";
 		ctx.fillStyle = colors.text;
 		ctx.fillText(step.toString(), chartAreaX, chartAreaY + y - 8);
 	}
@@ -100,13 +94,15 @@ export function renderChart(chart: Chart) {
 
 	for (let series = 0; series < serieses; series++) {
 		newDatasets.push({
-			data: []
+			data: [],
 		});
 	}
 
 	for (let xAxis = 0; xAxis < xAxisCount; xAxis++) {
 		for (let series = 0; series < serieses; series++) {
-			newDatasets[series].data.push(chart.datasets[series].data[xAxis] / yAxisRange);
+			newDatasets[series].data.push(
+				chart.datasets[series].data[xAxis] / yAxisRange,
+			);
 		}
 	}
 
@@ -124,14 +120,17 @@ export function renderChart(chart: Chart) {
 
 	// Draw X axis
 	ctx.lineWidth = lineWidth;
-	ctx.lineCap = 'round';
+	ctx.lineCap = "round";
 
 	for (let xAxis = 0; xAxis < xAxisCount; xAxis++) {
 		const xAxisPerTypeHeights: number[] = [];
 
 		for (let series = 0; series < serieses; series++) {
 			const v = newDatasets[series].data[xAxis];
-			const vHeight = (v / newUpperBound) * (chartAreaHeight - ((yAxisStepsMax - upperBound) / yAxisStepsMax * chartAreaHeight));
+			const vHeight =
+				(v / newUpperBound) *
+				(chartAreaHeight -
+					((yAxisStepsMax - upperBound) / yAxisStepsMax) * chartAreaHeight);
 			xAxisPerTypeHeights.push(vHeight);
 		}
 
@@ -145,12 +144,15 @@ export function renderChart(chart: Chart) {
 
 			const height = xAxisPerTypeHeights[series];
 
-			const x = chartAreaX + (perXAxisWidth * ((xAxisCount - 1) - xAxis)) + (perXAxisWidth / 2);
+			const x =
+				chartAreaX +
+				perXAxisWidth * (xAxisCount - 1 - xAxis) +
+				perXAxisWidth / 2;
 
-			const yTop = (chartAreaY + chartAreaHeight) - (total + height);
-			const yBottom = (chartAreaY + chartAreaHeight) - (total);
+			const yTop = chartAreaY + chartAreaHeight - (total + height);
+			const yBottom = chartAreaY + chartAreaHeight - total;
 
-			ctx.globalAlpha = 1 - (xAxis / xAxisCount);
+			ctx.globalAlpha = 1 - xAxis / xAxisCount;
 			ctx.beginPath();
 			ctx.lineTo(x, yTop);
 			ctx.lineTo(x, yBottom);
@@ -164,7 +166,11 @@ export function renderChart(chart: Chart) {
 // https://stackoverflow.com/questions/326679/choosing-an-attractive-linear-scale-for-a-graphs-y-axis
 // https://github.com/apexcharts/apexcharts.js/blob/master/src/modules/Scales.js
 // This routine creates the Y axis values for a graph.
-function niceScale(lowerBound: number, upperBound: number, ticks: number): number[] {
+function niceScale(
+	lowerBound: number,
+	upperBound: number,
+	ticks: number,
+): number[] {
 	if (lowerBound === 0 && upperBound === 0) return [0];
 
 	// Calculate Min amd Max graphical labels and graph

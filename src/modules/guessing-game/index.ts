@@ -1,11 +1,11 @@
-import { bindThis } from '@/decorators.js';
-import loki from 'lokijs';
-import Module from '@/module.js';
-import Message from '@/message.js';
-import serifs from '@/serifs.js';
+import { bindThis } from "@/decorators.js";
+import loki from "lokijs";
+import Module from "@/module.js";
+import Message from "@/message.js";
+import serifs from "@/serifs.js";
 
 export default class extends Module {
-	public readonly name = 'guessingGame';
+	public readonly name = "guessingGame";
 
 	private guesses: loki.Collection<{
 		userId: string;
@@ -18,23 +18,23 @@ export default class extends Module {
 
 	@bindThis
 	public install() {
-		this.guesses = this.ai.getCollection('guessingGame', {
-			indices: ['userId']
+		this.guesses = this.ai.getCollection("guessingGame", {
+			indices: ["userId"],
 		});
 
 		return {
 			mentionHook: this.mentionHook,
-			contextHook: this.contextHook
+			contextHook: this.contextHook,
 		};
 	}
 
 	@bindThis
 	private async mentionHook(msg: Message) {
-		if (!msg.includes(['数当て', '数あて'])) return false;
+		if (!msg.includes(["数当て", "数あて"])) return false;
 
 		const exist = this.guesses.findOne({
 			userId: msg.userId,
-			isEnded: false
+			isEnded: false,
 		});
 
 		const secret = Math.floor(Math.random() * 100);
@@ -45,10 +45,10 @@ export default class extends Module {
 			tries: [],
 			isEnded: false,
 			startedAt: Date.now(),
-			endedAt: null
+			endedAt: null,
 		});
 
-		msg.reply(serifs.guessingGame.started).then(reply => {
+		msg.reply(serifs.guessingGame.started).then((reply) => {
 			this.subscribeReply(msg.userId, reply.id);
 		});
 
@@ -61,16 +61,16 @@ export default class extends Module {
 
 		const exist = this.guesses.findOne({
 			userId: msg.userId,
-			isEnded: false
+			isEnded: false,
 		});
 
-		 // 処理の流れ上、実際にnullになることは無さそうだけど一応
+		// 処理の流れ上、実際にnullになることは無さそうだけど一応
 		if (exist == null) {
 			this.unsubscribeReply(key);
 			return;
 		}
 
-		if (msg.text.includes('やめ')) {
+		if (msg.text.includes("やめ")) {
 			msg.reply(serifs.guessingGame.cancel);
 			exist.isEnded = true;
 			exist.endedAt = Date.now();
@@ -82,7 +82,7 @@ export default class extends Module {
 		const guess = msg.extractedText.match(/[0-9]+/);
 
 		if (guess == null) {
-			msg.reply(serifs.guessingGame.nan).then(reply => {
+			msg.reply(serifs.guessingGame.nan).then((reply) => {
 				this.subscribeReply(msg.userId, reply.id);
 			});
 			return;
@@ -119,7 +119,7 @@ export default class extends Module {
 
 		this.guesses.update(exist);
 
-		msg.reply(text).then(reply => {
+		msg.reply(text).then((reply) => {
 			if (!end) {
 				this.subscribeReply(msg.userId, reply.id);
 			}

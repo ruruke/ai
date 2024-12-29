@@ -1,10 +1,10 @@
-import { bindThis } from '@/decorators.js';
-import Module from '@/module.js';
-import Friend from '@/friend.js';
-import serifs from '@/serifs.js';
+import { bindThis } from "@/decorators.js";
+import Module from "@/module.js";
+import Friend from "@/friend.js";
+import serifs from "@/serifs.js";
 
 export default class extends Module {
-	public readonly name = 'valentine';
+	public readonly name = "valentine";
 
 	@bindThis
 	public install() {
@@ -28,7 +28,7 @@ export default class extends Module {
 
 		const friends = this.ai.friends.find({} as any);
 
-		friends.forEach(f => {
+		friends.forEach((f) => {
 			const friend = new Friend(this.ai, { doc: f });
 
 			// 親愛度が5以上必要
@@ -44,7 +44,7 @@ export default class extends Module {
 			const text = serifs.valentine.chocolateForYou(friend.name);
 
 			this.ai.sendMessage(friend.userId, {
-				text: text
+				text: text,
 			});
 		});
 	}

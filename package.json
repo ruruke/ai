@@ -6,7 +6,8 @@
 		"start": "node ./built",
 		"start-daemon": "nodemon ./built",
 		"build": "tspc",
-		"test": "jest"
+		"test": "jest",
+		"lint": "eslint --fix --config ./.eslintrc.cjs src"
 	},
 	"dependencies": {
 		"@types/chalk": "2.2.0",
@@ -18,7 +19,7 @@
 		"@types/twemoji-parser": "13.1.4",
 		"@types/uuid": "9.0.7",
 		"@types/ws": "8.5.10",
-		"axios":"1.7.4",
+		"axios": "1.7.4",
 		"canvas": "2.11.2",
 		"chalk": "5.3.0",
 		"formdata-node": "6.0.3",
@@ -39,8 +40,15 @@
 		"ws": "8.17.1"
 	},
 	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "8.18.2",
+		"@typescript-eslint/parser": "8.18.2",
+		"eslint": "9.17.0",
+		"eslint-config-prettier": "9.1.0",
+		"prettier": "3.4.2"
 	},
 	"nodemonConfig": {
-    "ignore": ["memory.json"]
-  }
+		"ignore": [
+			"memory.json"
+		]
+	}
 }

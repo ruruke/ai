@@ -1,9 +1,9 @@
-import { bindThis } from '@/decorators.js';
-import 藍 from '@/ai.js';
-import IModule from '@/module.js';
-import getDate from '@/utils/get-date.js';
-import type { User } from '@/misskey/user.js';
-import { genItem } from '@/vocabulary.js';
+import { bindThis } from "@/decorators.js";
+import 藍 from "@/ai.js";
+import IModule from "@/module.js";
+import getDate from "@/utils/get-date.js";
+import type { User } from "@/misskey/user.js";
+import { genItem } from "@/vocabulary.js";
 
 export type FriendDoc = {
 	userId: string;
@@ -39,22 +39,22 @@ export default class Friend {
 
 	public doc: FriendDoc;
 
-	constructor(ai: 藍, opts: { user?: User, doc?: FriendDoc }) {
+	constructor(ai: 藍, opts: { user?: User; doc?: FriendDoc }) {
 		this.ai = ai;
 
 		if (opts.user) {
 			const exist = this.ai.friends.findOne({
-				userId: opts.user.id
+				userId: opts.user.id,
 			});
 
 			if (exist == null) {
 				const inserted = this.ai.friends.insertOne({
 					userId: opts.user.id,
-					user: opts.user
+					user: opts.user,
 				});
 
 				if (inserted == null) {
-					throw new Error('Failed to insert friend doc');
+					throw new Error("Failed to insert friend doc");
 				}
 
 				this.doc = inserted;
@@ -66,7 +66,7 @@ export default class Friend {
 		} else if (opts.doc) {
 			this.doc = opts.doc;
 		} else {
-			throw new Error('No friend info specified');
+			throw new Error("No friend info specified");
 		}
 	}
 
@@ -113,7 +113,11 @@ export default class Friend {
 		}
 
 		// 1日に上げられる親愛度は最大3
-		if (this.doc.lastLoveIncrementedAt == today && (this.doc.todayLoveIncrements || 0) >= 3) return;
+		if (
+			this.doc.lastLoveIncrementedAt == today &&
+			(this.doc.todayLoveIncrements || 0) >= 3
+		)
+			return;
 
 		if (this.doc.love == null) this.doc.love = 0;
 		this.doc.love += amount;
@@ -151,19 +155,18 @@ export default class Friend {
 
 	@bindThis
 	public async forceSetLove(amount: number): Promise<void> {
-			this.doc.love = amount;
+		this.doc.love = amount;
 
-			// 最大 100 に切り詰める（必要な場合）
-			if (this.doc.love > 100) this.doc.love = 100;
+		// 最大 100 に切り詰める（必要な場合）
+		if (this.doc.love > 100) this.doc.love = 100;
 
-			// 最低 -30 に切り詰める（必要な場合）
-			if (this.doc.love < -30) this.doc.love = -30;
+		// 最低 -30 に切り詰める（必要な場合）
+		if (this.doc.love < -30) this.doc.love = -30;
 
-			await this.save();  // awaitを追加
+		await this.save(); // awaitを追加
 
-			this.ai.log(`💗 ${this.userId} (forced) set to ${amount}`);
+		this.ai.log(`💗 ${this.userId} (forced) set to ${amount}`);
 	}
-
 
 	@bindThis
 	public updateName(name: string) {
@@ -203,7 +206,7 @@ export default class Friend {
 	@bindThis
 	public transferMemory(code: string): boolean {
 		const src = this.ai.friends.findOne({
-			transferCode: code
+			transferCode: code,
 		});
 
 		if (src == null) return false;
