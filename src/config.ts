@@ -20,6 +20,8 @@ type Config = {
 	memoryDir?: string;
 	followAllowedHosts?: string[];
 	followExcludeInstances?: string[];
+	mazeEnable?: boolean;
+	pollEnable?: boolean;
 };
 
 // import config from '../config.json' assert { type: 'json' };

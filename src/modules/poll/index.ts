@@ -11,6 +11,9 @@ export default class extends Module {
 
 	@bindThis
 	public install() {
+		if (!config.poolEnable) {
+					return {};
+		}
 		setInterval(
 			() => {
 				if (Math.random() < 0.1) {

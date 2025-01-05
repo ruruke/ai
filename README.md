@@ -28,7 +28,9 @@ Misskey用の日本語Botです。
 	"mecabDic": "MeCab の辞書ファイルパス (オプション)",
 	"memoryDir": "memory.jsonの保存先（オプション、デフォルトは'.'（レポジトリのルートです））",
 	"followAllowedHosts": ["*.0il.pw", "misskey.io"],
-	"followExcludeInstances": ["*.nakn.jp", "misskey.io"]
+	"followExcludeInstances": ["*.nakn.jp", "misskey.io"],
+	"mazeEnable": "true",
+	"pollEnable": "true"
 }
 ```
 `npm install` して `npm run build` して `npm start` すれば起動できます
@@ -56,7 +58,9 @@ Misskey用の日本語Botです。
 	"mecabDic": "/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd/",
 	"memoryDir": "data",
 	"followAllowedHosts": ["*.0il.pw", "misskey.io"],
-	"followExcludeInstances": ["*.nakn.jp", "misskey.io"]
+	"followExcludeInstances": ["*.nakn.jp", "misskey.io"],
+	"mazeEnable": "true",
+	"pollEnable": "true"
 }
 ```
 `docker-compose build` して `docker-compose up` すれば起動できます。
