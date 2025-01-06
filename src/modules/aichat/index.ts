@@ -118,7 +118,6 @@ export default class extends Module {
 
 		// random
 		const random = config.aichatRandomProbability || 0.4;
-
 		if (Math.random() > random) return false;
 
 		const tl = (await this.ai?.api("notes/hybrid-timeline", {
@@ -266,19 +265,19 @@ export default class extends Module {
 			);
 			msg.reply(serifs.aichat.error);
 			return false;
-	}
+		}
 
-	this.log("Replying...");
-	if (msg.replyId) {
-			// リプライにはタグを付けない
-			msg.reply(text);
-	} else {
-			// 通常投稿にはタグを追加
-			msg.reply(serifs.aichat.post(text));
-	}
+		this.log("Replying...");
+		if (msg.replyId) {
+				// リプライにはタグを付けない
+				msg.reply(text);
+		} else {
+				// 通常投稿にはタグを追加
+				msg.reply(serifs.aichat.post(text));
+		}
 
-	return {
-			reaction: "like",
-	};
+		return {
+				reaction: "like",
+		};
 	}
 }

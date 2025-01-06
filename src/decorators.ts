@@ -17,7 +17,7 @@ export function bindThis(target: any, key: string, descriptor: any) {
 	return {
 		configurable: true,
 		get() {
-			// eslint-disable-next-line no-prototype-builtins
+			 
 			if (
 				this === target.prototype ||
 				this.hasOwnProperty(key) ||
