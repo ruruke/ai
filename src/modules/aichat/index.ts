@@ -113,6 +113,12 @@ export default class extends Module {
 
 	@bindThis
 	private async replySocialTimelineNotes() {
+
+		// random
+		const random = config.aichatRandomProbability || 0.4;
+
+		if (Math.random() > random) return false;
+
 		const tl = (await this.ai?.api("notes/hybrid-timeline", {
 			limit: 10,
 		})) as Note[];
