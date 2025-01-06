@@ -15,6 +15,7 @@ type Config = {
 	geminiApiKey?: string;
 	prompt?: string;
 	replayPrompt?: string;
+	disableRandomReplies?: boolean;
 	aichatRandomProbability?: number;
 	mecab?: string;
 	mecabDic?: string;

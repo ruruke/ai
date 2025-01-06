@@ -113,6 +113,8 @@ export default class extends Module {
 
 	@bindThis
 	private async replySocialTimelineNotes() {
+		// configが存在しない場合やdisableRandomRepliesがtrueの場合は返信しない
+    if (!config || config.disableRandomReplies) return false;
 
 		// random
 		const random = config.aichatRandomProbability || 0.4;
