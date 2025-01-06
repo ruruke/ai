@@ -249,17 +249,23 @@ export default class extends Module {
 
 		if (text == null) {
 			this.log(
-				"The result is invalid. It seems that tokens and other items need to be reviewed.",
+					"The result is invalid. It seems that tokens and other items need to be reviewed.",
 			);
 			msg.reply(serifs.aichat.error);
 			return false;
-		}
+	}
 
-		this.log("Replying...");
-		msg.reply(serifs.aichat.post(text));
+	this.log("Replying...");
+	if (msg.replyId) {
+			// リプライにはタグを付けない
+			msg.reply(text);
+	} else {
+			// 通常投稿にはタグを追加
+			msg.reply(serifs.aichat.post(text));
+	}
 
-		return {
+	return {
 			reaction: "like",
-		};
+	};
 	}
 }
