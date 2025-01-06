@@ -24,6 +24,7 @@ const GEMINI_API_ENDPOINT =
 
 export default class extends Module {
 	public readonly name = "aichat";
+	private repliedNoteIds: Set<string> = new Set();
 
 	@bindThis
 	public install() {
@@ -136,8 +137,11 @@ export default class extends Module {
 				};
 			}),
 		).then((results) =>
-			results.filter((r) => r.isInterested).map((r) => r.note),
-		);
+			results
+					.filter((r) => r.isInterested)
+					.map((r) => r.note)
+					.filter((note) => !this.repliedNoteIds.has(note.id)),
+	);
 
 		if (interestedNotes.length === 0) return false;
 
@@ -178,7 +182,8 @@ export default class extends Module {
 		this.ai?.post({
 			text: serifs.aichat.post(text),
 			replyId: note.id,
-		});
+	});
+	this.repliedNoteIds.add(note.id); // 返信したノートを記録する
 	}
 
 	@bindThis
