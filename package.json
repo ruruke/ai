@@ -17,7 +17,7 @@
 		"@types/random-seed": "0.3.5",
 		"@types/seedrandom": "3.0.8",
 		"@types/twemoji-parser": "13.1.4",
-		"@types/uuid": "9.0.7",
+		"@types/uuid": "9.0.8",
 		"@types/ws": "8.5.10",
 		"axios": "1.7.4",
 		"canvas": "2.11.2",
