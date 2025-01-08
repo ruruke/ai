@@ -32,7 +32,7 @@
 		"random-seed": "0.3.0",
 		"reconnecting-websocket": "4.4.0",
 		"seedrandom": "3.0.5",
-		"ts-patch": "3.1.2",
+		"ts-patch": "3.3.0",
 		"twemoji-parser": "14.0.0",
 		"typescript": "5.3.3",
 		"typescript-transform-paths": "3.4.6",
