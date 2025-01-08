@@ -18,7 +18,7 @@
 		"@types/seedrandom": "3.0.8",
 		"@types/twemoji-parser": "13.1.4",
 		"@types/uuid": "9.0.8",
-		"@types/ws": "8.5.10",
+		"@types/ws": "8.5.13",
 		"axios": "1.7.9",
 		"canvas": "2.11.2",
 		"chalk": "5.4.1",
@@ -37,7 +37,7 @@
 		"typescript": "5.7.2",
 		"typescript-transform-paths": "3.5.3",
 		"uuid": "9.0.1",
-		"ws": "8.17.1"
+		"ws": "8.18.0"
 	},
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "8.19.1",
