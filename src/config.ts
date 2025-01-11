@@ -22,6 +22,7 @@ type Config = {
 	memoryDir?: string;
 	followAllowedHosts?: string[];
 	followExcludeInstances?: string[];
+	followExcludeUserIds?: string[];
 	mazeEnable?: boolean;
 	pollEnable?: boolean;
 };
