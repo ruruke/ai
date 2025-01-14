@@ -321,7 +321,7 @@ export default class extends Module {
 	@bindThis
 	private async aichatRandomTalk() {
 		this.log('AiChat(randomtalk) started');
-		const tl = await this.ai.api('notes/local-timeline', { limit: 30 });
+		const tl = await this.ai.api('notes/hybrid-timeline', { limit: 30 });
 		const interestedNotes = tl.filter(
 			(note) =>
 				note.userId !== this.ai.account.id &&
