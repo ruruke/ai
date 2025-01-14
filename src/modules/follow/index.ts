@@ -16,7 +16,6 @@ export default class extends Module {
 	@bindThis
 	private async mentionHook(msg: Message) {
 		console.log("User host:", msg.user.host);
-		console.log("User UserId:", msg.user.id);
 		console.log("User following status:", msg.user.isFollowing);
 		const allowedHosts = config.followAllowedHosts || [];
 		const followExcludeInstances = config.followExcludeInstances || [];
@@ -31,7 +30,7 @@ export default class extends Module {
 			if (
 				!msg.user.isFollowing &&
 				(msg.user.host == null ||
-					this.isHostAllowed(msg.user.host, allowedHosts) || !this.isHostExcluded(msg.user.host, followExcludeInstances)) 
+					this.isUserIDExcluded(msg.user.id, followExcludeUserIds) || this.isHostAllowed(msg.user.host, allowedHosts) || !this.isHostExcluded(msg.user.host, followExcludeInstances)) 
 			) {
 				try {
 					await this.ai.api("following/create", {
@@ -84,7 +83,12 @@ export default class extends Module {
 
 	private isUserIDExcluded(host: string,excludedUserIds: string[]): boolean {
 		for (const excludedUserId of excludedUserIds) {
-				if (host === excludedUserId) {
+				if (excludedUserId.startsWith('*')) {
+						const userid = excludedUserId.slice(1);
+						if (host.endsWith(userid)) {
+								return true;
+						}
+				} else if (host === excludedUserId) {
 						return true;
 				}
 		}
