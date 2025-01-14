@@ -19,7 +19,6 @@ export default class extends Module {
 		console.log("User following status:", msg.user.isFollowing);
 		const allowedHosts = config.followAllowedHosts || [];
 		const followExcludeInstances = config.followExcludeInstances || [];
-		const followExcludeUserIds = config.followExcludeUserIds || [];
 
 		if (
 			msg.text &&
@@ -30,7 +29,7 @@ export default class extends Module {
 			if (
 				!msg.user.isFollowing &&
 				(msg.user.host == null ||
-					this.isUserIDExcluded(msg.user.id, followExcludeUserIds) || this.isHostAllowed(msg.user.host, allowedHosts) || !this.isHostExcluded(msg.user.host, followExcludeInstances)) 
+					this.isHostAllowed(msg.user.host, allowedHosts) || !this.isHostExcluded(msg.user.host, followExcludeInstances))
 			) {
 				try {
 					await this.ai.api("following/create", {
@@ -75,20 +74,6 @@ export default class extends Module {
 								return true;
 						}
 				} else if (host === excludedHost) {
-						return true;
-				}
-		}
-		return false;
-	}
-
-	private isUserIDExcluded(host: string,excludedUserIds: string[]): boolean {
-		for (const excludedUserId of excludedUserIds) {
-				if (excludedUserId.startsWith('*')) {
-						const userid = excludedUserId.slice(1);
-						if (host.endsWith(userid)) {
-								return true;
-						}
-				} else if (host === excludedUserId) {
 						return true;
 				}
 		}
