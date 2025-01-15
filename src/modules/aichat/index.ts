@@ -332,7 +332,7 @@ export default class extends Module {
 	@bindThis
 	private async aichatRandomTalk() {
 		this.log('AiChat(randomtalk) started');
-		const tl = await this.ai.api('notes/hybrid-timeline', { limit: 30 });
+		const tl = await this.ai.api('notes/timeline', { limit: 30 });
 		const interestedNotes = tl.filter(
 			(note) =>
 				note.userId !== this.ai.account.id &&
@@ -365,8 +365,9 @@ export default class extends Module {
 			}
 		}
 
-		const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
-		if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
+		// const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
+		// if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
+		if (choseNote.user.isBot) return false;
 
 		const relation = await this.ai.api('users/relation', {
 			userId: choseNote.userId,
