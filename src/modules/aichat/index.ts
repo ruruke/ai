@@ -242,6 +242,17 @@ export default class extends Module {
 			return false;
 		} else {
 			this.log('AiChat requested');
+
+			const relation = await this.ai?.api('users/relation', {
+				userId: msg.userId,
+			});
+			// this.log('Relation data:' + JSON.stringify(relation));
+
+			if (relation[0]?.isFollowing !== true) {
+				this.log('The user is not following me:' + msg.userId);
+				msg.reply('あなたはaichatを実行する権限がありません。');
+				return false;
+			}
 		}
 
 		const conversationData = await this.ai.api('notes/conversation', {
@@ -329,6 +340,7 @@ export default class extends Module {
 				note.replyId == null &&
 				note.renoteId == null &&
 				note.cw == null &&
+				(note.visibility === 'public' || note.visibility === 'home') &&
 				note.files.length == 0 &&
 				!note.user.isBot
 		);
@@ -356,23 +368,30 @@ export default class extends Module {
 		const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
 		if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
 
-		const current: AiChatHist = {
-			postId: choseNote.id,
-			createdAt: Date.now(),
-			type: TYPE_GEMINI,
-		};
+		const relation = await this.ai.api('users/relation', {
+			userId: choseNote.userId,
+		});
 
-		let targetedMessage = choseNote;
-		if (choseNote.extractedText == undefined) {
-			const data = await this.ai.api('notes/show', { noteId: choseNote.id });
-			targetedMessage = new Message(this.ai, data);
+		if (relation[0]?.isFollowing === true) {
+			const current: AiChatHist = {
+				postId: choseNote.id,
+				createdAt: Date.now(),
+				type: TYPE_GEMINI,
+			};
+
+			let targetedMessage = choseNote;
+			if (choseNote.extractedText == undefined) {
+				const data = await this.ai.api('notes/show', { noteId: choseNote.id });
+				targetedMessage = new Message(this.ai, data);
+			}
+
+			const result = await this.handleAiChat(current, targetedMessage);
+
+			if (result) {
+				return { reaction: 'like' };
+			}
 		}
 
-		const result = await this.handleAiChat(current, targetedMessage);
-
-		if (result) {
-			return { reaction: 'like' };
-		}
 		return false;
 	}
 
@@ -426,7 +445,7 @@ export default class extends Module {
 			return false;
 		}
 
-		msg.reply(serifs.aichat.post(text, exist.type)).then((reply) => {
+		msg.reply(serifs.aichat.post(text)).then((reply) => {
 			if (!exist.history) {
 				exist.history = [];
 			}
