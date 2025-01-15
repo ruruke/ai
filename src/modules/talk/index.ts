@@ -33,9 +33,7 @@ export default class extends Module {
 			this.ote(msg) ||
 			this.ponkotu(msg) ||
 			this.rmrf(msg) ||
-			this.shutdown(msg) ||
-			this.sexualharassment(msg) ||
-			this.breathinginai(msg)
+			this.shutdown(msg)
 		);
 	}
 
@@ -348,47 +346,5 @@ export default class extends Module {
 		return {
 			reaction: 'confused',
 		};
-	}
-
-	@bindThis
-	private sexualharassment(msg: Message): boolean | HandlerResult {
-		if (
-			!msg.includes([
-				'えっちしよ',
-				'えっちして',
-				'エッチ',
-				'脱いで',
-				'脱げ',
-				'交尾',
-				'パンツの色',
-			])
-		)
-			return false;
-
-		msg.friend.decLove();
-		msg.reply(serifs.core.sexualharassment);
-
-		return {
-			reaction: 'angry',
-		};
-	}
-
-	@bindThis
-	private breathinginai(msg: Message): boolean | HandlerResult {
-		if (!msg.includes(['吸う'])) return false;
-
-		msg.reply(
-			msg.friend.love >= 5
-				? serifs.core.breathinginai.love
-				: msg.friend.love <= 0
-					? serifs.core.breathinginai.hate
-					: serifs.core.breathinginai.normal
-		);
-
-		if (msg.friend.love <= 0) {
-			msg.friend.decLove();
-		}
-
-		return true;
 	}
 }

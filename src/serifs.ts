@@ -157,16 +157,6 @@ export default {
 
 		shutdown: '私まだ眠くないですよ...？',
 
-		sexualharassment: 'やめてください！',
-
-		breathinginai: {
-			normal: '…なんですか？',
-
-			love: 'どうしたんですか？',
-
-			hate: '……',
-		},
-
 		transferNeedDm: 'わかりました、それはチャットで話しませんか？',
 
 		transferCode: (code) => `わかりました。\n合言葉は「${code}」です！`,
