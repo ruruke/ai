@@ -37,8 +37,8 @@
       "javascript": { "globals": [] },
       "linter": {
         "rules": {
-          "style": { "noNonNullAssertion": "warn" },
-          "suspicious": { "noExplicitAny": "warn" }
+          "style": { "noNonNullAssertion": "off" },
+          "suspicious": { "noExplicitAny": "off" }
         }
       }
     }
