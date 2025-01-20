@@ -2,32 +2,32 @@ import { bindThis } from '@/decorators.js';
 import Module from '@/module.js';
 
 export default class extends Module {
-	public readonly name = 'welcome';
+  public readonly name = 'welcome';
 
-	@bindThis
-	public install() {
-		const tl = this.ai.connection.useSharedConnection('localTimeline');
+  @bindThis
+  public install() {
+    const tl = this.ai.connection.useSharedConnection('localTimeline');
 
-		tl.on('note', this.onLocalNote);
+    tl.on('note', this.onLocalNote);
 
-		return {};
-	}
+    return {};
+  }
 
-	@bindThis
-	private onLocalNote(note: any) {
-		if (note.isFirstNote) {
-			setTimeout(() => {
-				this.ai.api('notes/create', {
-					renoteId: note.id,
-				});
-			}, 3000);
+  @bindThis
+  private onLocalNote(note: any) {
+    if (note.isFirstNote) {
+      setTimeout(() => {
+        this.ai.api('notes/create', {
+          renoteId: note.id,
+        });
+      }, 3000);
 
-			setTimeout(() => {
-				this.ai.api('notes/reactions/create', {
-					noteId: note.id,
-					reaction: 'congrats',
-				});
-			}, 5000);
-		}
-	}
+      setTimeout(() => {
+        this.ai.api('notes/reactions/create', {
+          noteId: note.id,
+          reaction: 'congrats',
+        });
+      }, 5000);
+    }
+  }
 }

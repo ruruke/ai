@@ -46,74 +46,74 @@ console.log(' /(__)\\  _)(_  )(_)( \\__ \\');
 console.log('(__)(__)(____)(_____)(___/\n');
 
 function log(msg: string): void {
-	_log(`[Boot]: ${msg}`);
+  _log(`[Boot]: ${msg}`);
 }
 
 log(chalk.bold(`Ai v${pkg._v}`));
 
 process.on('uncaughtException', (err) => {
-	try {
-		console.error(`Uncaught exception: ${err.message}`);
-		console.dir(err, { colors: true, depth: 2 });
-	} catch {}
+  try {
+    console.error(`Uncaught exception: ${err.message}`);
+    console.dir(err, { colors: true, depth: 2 });
+  } catch {}
 });
 
 promiseRetry(
-	(retry) => {
-		log(`Account fetching... ${chalk.gray(config.host)}`);
+  (retry) => {
+    log(`Account fetching... ${chalk.gray(config.host)}`);
 
-		// アカウントをフェッチ
-		return got
-			.post(`${config.apiUrl}/i`, {
-				json: {
-					i: config.i,
-				},
-			})
-			.json()
-			.catch(retry);
-	},
-	{
-		retries: 3,
-	}
+    // アカウントをフェッチ
+    return got
+      .post(`${config.apiUrl}/i`, {
+        json: {
+          i: config.i,
+        },
+      })
+      .json()
+      .catch(retry);
+  },
+  {
+    retries: 3,
+  }
 )
-	.then((account) => {
-		// @ts-ignore
-		const acct = `@${account.username}`;
-		log(chalk.green(`Account fetched successfully: ${chalk.underline(acct)}`));
+  .then((account) => {
+    // @ts-ignore
+    const acct = `@${account.username}`;
+    log(chalk.green(`Account fetched successfully: ${chalk.underline(acct)}`));
 
-		log('Starting AiOS...');
+    log('Starting AiOS...');
 
-		// 藍起動
-		// @ts-ignore
-		new 藍(account, [
-			new CoreModule(),
-			new EmojiModule(),
-			new EmojiReactModule(),
-			new FortuneModule(),
-			new GuessingGameModule(),
-			new KazutoriModule(),
-			new ReversiModule(),
-			new TimerModule(),
-			new DiceModule(),
-			new TalkModule(),
-			new PingModule(),
-			new WelcomeModule(),
-			new ServerModule(),
-			new FollowModule(),
-			new BirthdayModule(),
-			new ValentineModule(),
-			new KeywordModule(),
-			new MazeModule(),
-			new ChartModule(),
-			new SleepReportModule(),
-			new NotingModule(),
-			new PollModule(),
-			new ReminderModule(),
-			new CheckCustomEmojisModule(),
-			new EarthQuakeWarningModule(),
-			new AiChatModule(),
-		]);
-	})
-	.catch((e) => {
-		log(chalk.red('Failed to fetch the account'));
-	});
+    // 藍起動
+    // @ts-ignore
+    new 藍(account, [
+      new CoreModule(),
+      new EmojiModule(),
+      new EmojiReactModule(),
+      new FortuneModule(),
+      new GuessingGameModule(),
+      new KazutoriModule(),
+      new ReversiModule(),
+      new TimerModule(),
+      new DiceModule(),
+      new TalkModule(),
+      new PingModule(),
+      new WelcomeModule(),
+      new ServerModule(),
+      new FollowModule(),
+      new BirthdayModule(),
+      new ValentineModule(),
+      new KeywordModule(),
+      new MazeModule(),
+      new ChartModule(),
+      new SleepReportModule(),
+      new NotingModule(),
+      new PollModule(),
+      new ReminderModule(),
+      new CheckCustomEmojisModule(),
+      new EarthQuakeWarningModule(),
+      new AiChatModule(),
+    ]);
+  })
+  .catch((e) => {
+    log(chalk.red('Failed to fetch the account'));
+  });
