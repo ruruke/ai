@@ -51,6 +51,7 @@ type AiChatHist = {
     content: string;
   }[];
 	friendName?: string;
+	originalNoteId?: string;
 };
 
 const TYPE_GEMINI = 'gemini';
@@ -70,7 +71,7 @@ export default class extends Module {
   @bindThis
   public install() {
     this.aichatHist = this.ai.getCollection('aichatHist', {
-      indices: ['postId'],
+      indices: ['postId', 'originalNoteId'],
     });
 
     if (
@@ -366,6 +367,12 @@ export default class extends Module {
       }
     }
 
+		exist = this.aichatHist.findOne({ originalNoteId: choseNote.id });
+		if (exist != null) {
+			this.log('Already replied to this note via originalNoteId');
+			return false;
+		}
+
     // const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
     // if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
     if (choseNote.user.isBot) return false;
@@ -463,6 +470,7 @@ export default class extends Module {
         api: aiChat.api,
         history: exist.history,
         friendName: friendName,
+				originalNoteId: exist.postId,
       });
 
       this.subscribeReply(reply.id, reply.id);
