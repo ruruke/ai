@@ -50,6 +50,7 @@ type AiChatHist = {
     role: string;
     content: string;
   }[];
+	friendName?: string;
 };
 
 const TYPE_GEMINI = 'gemini';
