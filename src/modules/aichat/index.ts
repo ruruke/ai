@@ -5,7 +5,7 @@ import Message from '@/message.js';
 import config from '@/config.js';
 import Friend from '@/friend.js';
 import urlToBase64 from '@/utils/url2base64.js';
-import got, { HTTPError } from 'got';
+import got from 'got';
 import loki from 'lokijs';
 
 type AiChat = {
@@ -108,11 +108,7 @@ export default class extends Module {
   }
 
   @bindThis
-  private async genTextByGemini(aiChat: AiChat, files: base64File[]) : Promise<{
-		text: string | null;
-		error?: Error;
-		statusCode?: number;
-	}> {
+  private async genTextByGemini(aiChat: AiChat, files: base64File[]) {
     this.log('Generate Text By Gemini...');
     let parts: GeminiParts = [];
     const now = new Date().toLocaleString('ja-JP', {
@@ -196,21 +192,11 @@ export default class extends Module {
       }
     } catch (err: unknown) {
       this.log('Error By Call Gemini');
-			let statusCode: number | undefined;
-
-      if (err instanceof HTTPError) {
-				statusCode = err.response.statusCode;
-				this.log(`HTTP Error: ${statusCode}`);
-			} else if (err instanceof Error) {
-				this.log(`${err.name}\n${err.message}\n${err.stack}`);
-			}
-
-			return {
-				text: null,
-				error: err instanceof Error ? err : new Error(String(err)),
-				statusCode
-			};
-		}
+      if (err instanceof Error) {
+        this.log(`${err.name}\n${err.message}\n${err.stack}`);
+      }
+    }
+    return null;
   }
 
   @bindThis
@@ -458,15 +444,15 @@ export default class extends Module {
     };
 
     const base64Files: base64File[] = await this.note2base64File(msg.id);
-		const result = await this.genTextByGemini(aiChat, base64Files);
+    text = await this.genTextByGemini(aiChat, base64Files);
 
-		if (result.text === null) {
-      this.log('API call failed: ' + result.error);
-			msg.reply(serifs.aichat.error(exist.type, result.statusCode));
-			return false;
-		}
-
-		text = result.text;
+    if (text == null) {
+      this.log(
+        'The result is invalid. It seems that tokens and other items need to be reviewed.'
+      );
+      msg.reply(serifs.aichat.error(exist.type));
+      return false;
+    }
 
     msg.reply(serifs.aichat.post(text)).then((reply) => {
       if (!exist.history) {
