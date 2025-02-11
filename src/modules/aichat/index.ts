@@ -55,8 +55,8 @@ type AiChatHist = {
 };
 
 const TYPE_GEMINI = 'gemini';
-const GEMINI_20_FLASH_API =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+const geminiModel = config.geminiModel || 'gemini-2.0-flash-exp';
+const GEMINI_20_FLASH_API = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
 
 const RANDOMTALK_DEFAULT_PROBABILITY = 0.02; // デフォルトのrandomTalk確率
 const TIMEOUT_TIME = 1000 * 60 * 60 * 0.5; // aichatの返信を監視する時間

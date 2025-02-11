@@ -13,6 +13,7 @@ type Config = {
   checkEmojisEnabled?: boolean;
   checkEmojisAtOnce?: boolean;
   geminiApiKey?: string;
+	geminiModel?: string;
   prompt?: string;
   aichatRandomTalkEnabled?: string;
   aichatRandomTalkProbability?: string;
