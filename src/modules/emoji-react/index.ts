@@ -78,7 +78,7 @@ export default class extends Module {
     if (includes(note.text, ['ほっとけーき', 'hotcake'])) return react('🥞');
     if (includes(note.text, ['ぱすた', 'pasta'])) return react('🍝');
     if (includes(note.text, ['けーき', 'cake'])) return react('🍰');
-    if (includes(note.text, ['タコ', 'octopus'])) return react('🐙');
+		if (note.text.includes('タコ') || includes(note.text, ['octopus'])) return react('🐙');
     if (includes(note.text, ['ねこ', 'cat'])) return react('😺');
     if (includes(note.text, ['いぬ', 'dog'])) return react('🐶');
 
