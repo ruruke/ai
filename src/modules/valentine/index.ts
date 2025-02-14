@@ -21,7 +21,7 @@ export default class extends Module {
   private crawleValentine() {
     const now = new Date();
 
-    const isValentine = now.getMonth() == 2 && now.getDate() == 14;
+    const isValentine = now.getMonth() == 1 && now.getDate() == 14;
     if (!isValentine) return;
 
     const date = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
