@@ -62,6 +62,8 @@ const RANDOMTALK_DEFAULT_PROBABILITY = 0.02; // デフォルトのrandomTalk確�
 const TIMEOUT_TIME = 1000 * 60 * 60 * 0.5; // aichatの返信を監視する時間
 const RANDOMTALK_DEFAULT_INTERVAL = 1000 * 60 * 60 * 12; // デフォルトのrandomTalk間隔
 
+const AUTO_NOTE_DEFAULT_INTERVAL = 1000 * 60 * 360;
+
 export default class extends Module {
   public readonly name = 'aichat';
   private aichatHist: loki.Collection<AiChatHist>;
@@ -99,6 +101,20 @@ export default class extends Module {
     if (config.aichatRandomTalkEnabled) {
       setInterval(this.aichatRandomTalk, this.randomTalkIntervalMinutes);
     }
+
+		// ここで geminiPostMode が "auto" もしくは "both" の場合、自動ノート投稿を設定
+		if (
+			config.geminiPostMode === 'auto' ||
+			config.geminiPostMode === 'both'
+		) {
+			const interval =
+				config.autoNoteIntervalMinutes &&
+				!isNaN(parseInt(config.autoNoteIntervalMinutes))
+					? 1000 * 60 * parseInt(config.autoNoteIntervalMinutes)
+					: AUTO_NOTE_DEFAULT_INTERVAL;
+			setInterval(this.autoNote, interval);
+			this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
+		}
 
     return {
       mentionHook: this.mentionHook,
@@ -409,6 +425,29 @@ export default class extends Module {
     }
 
     return false;
+  }
+
+	@bindThis
+  private async autoNote() {
+    this.log('Gemini自動ノート投稿開始');
+    if (!config.geminiApiKey || !config.autoNotePrompt) {
+      this.log('APIキーまたは自動ノート用プロンプトが設定されていません。');
+      return;
+    }
+    // 自動投稿の場合は質問部分は任意の固定文や空文字でもOKです。
+    const aiChat: AiChat = {
+      question: '',
+      prompt: config.autoNotePrompt,
+      api: GEMINI_API,
+      key: config.geminiApiKey,
+    };
+    const base64Files: base64File[] = []; // 自動ノートの場合はファイルは添付しない
+    const text = await this.genTextByGemini(aiChat, base64Files);
+    if (text) {
+      this.ai.post({ text });
+    } else {
+      this.log('Gemini自動ノートの生成に失敗しました。');
+    }
   }
 
   @bindThis

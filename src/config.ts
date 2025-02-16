@@ -14,7 +14,10 @@ type Config = {
   checkEmojisAtOnce?: boolean;
   geminiApiKey?: string;
 	geminiModel?: string;
+	geminiPostMode?: string;
   prompt?: string;
+	autoNotePrompt?: string;
+	autoNoteIntervalMinutes?: string;
   aichatRandomTalkEnabled?: string;
   aichatRandomTalkProbability?: string;
   aichatRandomTalkIntervalMinutes?: string;
