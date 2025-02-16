@@ -301,6 +301,13 @@ export default class extends Module {
     this.log('contextHook...');
     if (msg.text == null) return false;
 
+			const relation = await this.ai.api('users/relation', { userId: msg.userId });
+			if (relation[0]?.isFollowing !== true) {
+				this.log('The user is not following me: ' + msg.userId);
+				msg.reply('あなたはaichatを実行する権限がありません。');
+				return false;
+			}
+
     const conversationData = await this.ai.api('notes/conversation', {
       noteId: msg.id,
     });
