@@ -15,6 +15,7 @@ type AiChat = {
   key: string;
   history?: { role: string; content: string }[];
   friendName?: string;
+	tools?: any[];
 };
 type base64File = {
   type: string;
@@ -180,6 +181,7 @@ export default class extends Module {
       json: {
         contents: contents,
         systemInstruction: systemInstruction,
+				...(aiChat.tools && { tools: aiChat.tools }),
       },
     };
     this.log(JSON.stringify(options));
@@ -194,13 +196,13 @@ export default class extends Module {
           if (res_data.candidates[0].hasOwnProperty('content')) {
             if (res_data.candidates[0].content.hasOwnProperty('parts')) {
               if (res_data.candidates[0].content.parts.length > 0) {
-                if (
-                  res_data.candidates[0].content.parts[0].hasOwnProperty('text')
-                ) {
-                  const responseText =
-                    res_data.candidates[0].content.parts[0].text;
-                  return responseText;
+                let responseText = '';
+                for (const part of res_data.candidates[0].content.parts) {
+                  if (part.text) {
+                    responseText += part.text + '\n';
+                  }
                 }
+                return responseText.trim();
               }
             }
           }
@@ -462,7 +464,13 @@ export default class extends Module {
     const extractedText = msg.extractedText;
     if (extractedText == undefined || extractedText.length == 0) return false;
 
-    const question = extractedText.replace(reName, '').trim();
+    let question = extractedText.replace(reName, '').trim();
+		let tools: any[] | undefined = undefined;
+
+		if (question.toLowerCase().startsWith('search ')) {
+			question = question.slice(7).trim();
+			tools = [{ google_search: {} }];
+		}
 
     const friend: Friend | null = this.ai.lookupFriend(msg.userId);
     let friendName: string | undefined;
@@ -487,6 +495,7 @@ export default class extends Module {
       key: config.geminiApiKey,
       history: exist.history,
       friendName: friendName,
+			tools: tools,
     };
 
     const base64Files: base64File[] = await this.note2base64File(msg.id);
