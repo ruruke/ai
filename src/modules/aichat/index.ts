@@ -140,7 +140,7 @@ export default class extends Module {
       aiChat.prompt +
       '。また、現在日時は' +
       now +
-      'であり、これは回答の参考にし、時刻を聞かれるまで時刻情報は提供しないこと(なお、他の日時は無効とすること)。';
+      'であり、これは回答の参考にし、絶対に時刻を聞かれるまで時刻情報は提供しないこと(なお、他の日時は無効とすること)。';
     if (aiChat.friendName != undefined) {
       systemInstructionText +=
         'なお、会話相手の名前は' + aiChat.friendName + 'とする。';
