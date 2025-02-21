@@ -64,6 +64,7 @@ const TIMEOUT_TIME = 1000 * 60 * 60 * 0.5; // aichatの返信を監視する時�
 const RANDOMTALK_DEFAULT_INTERVAL = 1000 * 60 * 60 * 12; // デフォルトのrandomTalk間隔
 
 const AUTO_NOTE_DEFAULT_INTERVAL = 1000 * 60 * 360;
+const AUTO_NOTE_DEFAULT_PROBABILITY = 0.02;
 
 export default class extends Module {
   public readonly name = 'aichat';
@@ -115,6 +116,12 @@ export default class extends Module {
 					: AUTO_NOTE_DEFAULT_INTERVAL;
 			setInterval(this.autoNote, interval);
 			this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
+			const probability =
+				config.geminiAutoNoteProbability &&
+				!isNaN(parseFloat(config.geminiAutoNoteProbability))
+					? parseFloat(config.geminiAutoNoteProbability)
+					: AUTO_NOTE_DEFAULT_PROBABILITY;
+			this.log('Gemini自動ノート投稿確率: probability=' + probability);
 		}
 
     return {
@@ -429,14 +436,23 @@ export default class extends Module {
     return false;
   }
 
-	@bindThis
+  @bindThis
   private async autoNote() {
+    if (
+      config.geminiAutoNoteProbability !== undefined &&
+      !isNaN(Number.parseFloat(config.geminiAutoNoteProbability))
+    ) {
+      const probability = Number.parseFloat(config.geminiAutoNoteProbability);
+      if (Math.random() >= probability) {
+        this.log(`Gemini自動ノート投稿の確率によりスキップされました: probability=${probability}`);
+        return;
+      }
+    }
     this.log('Gemini自動ノート投稿開始');
     if (!config.geminiApiKey || !config.autoNotePrompt) {
       this.log('APIキーまたは自動ノート用プロンプトが設定されていません。');
       return;
     }
-    // 自動投稿の場合は質問部分は任意の固定文や空文字でもOKです。
     const aiChat: AiChat = {
       question: '',
       prompt: config.autoNotePrompt,
