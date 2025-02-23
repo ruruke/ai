@@ -440,10 +440,6 @@ const defaultSerifs = {
     reportUtatane: 'ん... うたた寝しちゃってました',
   },
 
-	specifiedNotes: {
-		post: (username, 	text) => `@${username}が、${text} ってDMで言ってました！`,
-	},
-
   noting: {
     notes: [
       'ゴロゴロ…',

@@ -10,7 +10,6 @@ import { v4 as uuid } from 'uuid';
 
 import config from '@/config.js';
 import Module from '@/module.js';
-import serifs from '@/serifs.js';
 import Message from '@/message.js';
 import Friend, { FriendDoc } from '@/friend.js';
 import type { User } from '@/misskey/user.js';
@@ -53,7 +52,6 @@ export default class 藍 {
   public account: User;
   public connection: Stream;
   public modules: Module[] = [];
-	public serifs: typeof serifs = serifs;
   private mentionHooks: MentionHook[] = [];
   private contextHooks: { [moduleName: string]: ContextHook } = {};
   private timeoutCallbacks: { [moduleName: string]: TimeoutCallback } = {};
@@ -162,30 +160,6 @@ export default class 藍 {
         // Misskeyのバグで投稿が非公開扱いになる
         if (data.text == null)
           data = await this.api('notes/show', { noteId: data.id });
-
-				// Handle specified visibility notes
-				if (data.visibility === "specified") {
-					const content = data.text
-						.replace(new RegExp(`^@${this.account.username}\\s*`), '')
-						.replace(new RegExp(`^@${this.account.host}\\s*`), '')
-						.trim()
-						.split(/\s+/)
-						.filter(word => !word.startsWith('@'))
-						.join(' ');
-
-						const displayName = data.user.host 
-						? `${data.user.username}@${data.user.host}`
-						: data.user.name || data.user.username;
-
-					if (content) {
-						await this.post({
-							text: `${this.serifs.specifiedNotes.post(displayName, content)}`,
-							visibility: "public",
-							mentionedUserIds: [data.user.id],
-						});
-					}
-				}
-
         this.onReceiveMessage(new Message(this, data));
       }
     });
