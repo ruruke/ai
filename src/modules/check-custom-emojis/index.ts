@@ -148,7 +148,8 @@ export default class extends Module {
   private async mentionHook(msg: Message) {
     if (
       !msg.includes([
-        'カスタムえもじチェック',
+        'カスタム絵文字チェック',
+				'カスタムえもじチェック',
         'カスタムえもじを調べて',
         'カスタムえもじを確認',
       ])
