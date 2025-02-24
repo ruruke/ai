@@ -533,8 +533,12 @@ function getParamNames(func: Function): string[] {
   return paramsPart.split(',').map(p => p.trim()).filter(p => p);
 }
 
-function deepMerge(target: any, source: any): any {
+function deepMerge(target: any, source: any, parentKey: string = ''): any {
   for (const key in source) {
+    if (parentKey === 'noting' && key === 'notes') {
+      target[key] = source[key];
+      continue;
+    }
     if (typeof target[key] === 'function' && typeof source[key] === 'string') {
       const originalFunc = target[key];
       const paramNames = getParamNames(originalFunc);
@@ -558,7 +562,7 @@ function deepMerge(target: any, source: any): any {
         );
       };
     } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      target[key] = deepMerge(target[key] || {}, source[key]);
+      target[key] = deepMerge(target[key] || {}, source[key], key);
     } else {
       target[key] = source[key];
     }
@@ -571,7 +575,7 @@ try {
   const fileContent = await readFile(new URL('../serifs.yml', import.meta.url), 'utf8');
   const loadedSerifs = yaml.load(fileContent);
   if (loadedSerifs && typeof loadedSerifs === 'object') {
-    computedSerifs = deepMerge({ ...defaultSerifs }, loadedSerifs);
+    computedSerifs = deepMerge(computedSerifs, loadedSerifs);
   }
 } catch (e) {
   // Fallback to defaultSerifs if serifs.yml is missing or invalid

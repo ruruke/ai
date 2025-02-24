@@ -21,3 +21,8 @@ core:
 
 keyword:
   learned: "（{word}、{reading} を覚えました）"
+
+noting:
+  notes:
+    - "元のメモ1"
+    - "元のメモ2"
