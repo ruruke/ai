@@ -462,7 +462,7 @@ export default class extends Module {
     const base64Files: base64File[] = []; // 自動ノートの場合はファイルは添付しない
     const text = await this.genTextByGemini(aiChat, base64Files);
     if (text) {
-      this.ai.post({ text });
+      this.ai.post({ text } + '#aichat');
     } else {
       this.log('Gemini自動ノートの生成に失敗しました。');
     }
