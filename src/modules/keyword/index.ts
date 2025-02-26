@@ -15,10 +15,7 @@ function kanaToHira(str: string) {
 export default class extends Module {
   public readonly name = 'keyword';
 
-  private learnedKeywords: loki.Collection<{
-    keyword: string;
-    learnedAt: number;
-  }>;
+  private learnedKeywords!: loki.Collection<{ keyword: string; learnedAt: number }>;
 
   @bindThis
   public install() {
@@ -35,7 +32,7 @@ export default class extends Module {
 
   @bindThis
   private async learn() {
-    const tl = await this.ai.api('notes/hybrid-timeline', {
+    const tl: unknown = await this.ai.api('notes/hybrid-timeline', {
       limit: 30,
     });
 
@@ -47,6 +44,7 @@ export default class extends Module {
         (note.visibility === 'public' || note.visibility === 'home')
     );
 
+    if (!Array.isArray(interestedNotes)) return;
     let keywords: string[][] = [];
 
     for (const note of interestedNotes) {

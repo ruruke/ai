@@ -388,6 +388,8 @@ export default class 藍 {
    */
   @bindThis
   public async post(param: any) {
+		if (config.postNotPublic && (!param.visibility || param.visibility == "public")) param.visibility = "home";
+		if (!param.visibility && config.defaultVisibility) param.visibility = config.defaultVisibility
     const res = await this.api('notes/create', param);
     return res.createdNote;
   }

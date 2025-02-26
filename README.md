@@ -45,7 +45,9 @@ Misskey用の日本語Botです。
 	"followAllowedHosts": ["*.0il.pw", "misskey.io"],
 	"followExcludeInstances": ["*.nakn.jp", "misskey.io"],
 	"mazeEnable": true,
-	"pollEnable": true
+	"pollEnable": true,
+	"postNotPublic": false,
+	"defaultVisibility": "public",
 }
 ```
 `npm install` して `npm run build` して `npm start` すれば起動できます
@@ -82,7 +84,9 @@ Misskey用の日本語Botです。
 	"followAllowedHosts": ["*.0il.pw", "misskey.io"],
 	"followExcludeInstances": ["*.nakn.jp", "misskey.io"],
 	"mazeEnable": true,
-	"pollEnable": true
+	"pollEnable": true,
+	"postNotPublic": false,
+	"defaultVisibility": "public",
 }
 ```
 `docker-compose build` して `docker-compose up` すれば起動できます。

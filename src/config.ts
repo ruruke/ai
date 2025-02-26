@@ -29,13 +29,19 @@ type Config = {
   followExcludeInstances?: string[];
   mazeEnable?: boolean;
   pollEnable?: boolean;
+  postNotPublic?: boolean;
+  defaultVisibility?: string;
 };
 
-// import config from '../config.json' assert { type: 'json' };
 import { readFile } from 'fs/promises';
-const config = JSON.parse(
-  await readFile(new URL('../config.json', import.meta.url))
-);
+const config = JSON.parse(await readFile(new URL('../config.json', import.meta.url), 'utf8'));
+
+if(!config.followAllowedHosts) config.followAllowedHosts = [];
+if(!config.followExcludeInstances) config.followExcludeInstances = [];
+if(!config.mazeEnable) config.mazeEnable = false;
+if(!config.pollEnable) config.pollEnable = false;
+if (!config.defaultVisibility) config.defaultVisibility = "public";
+if (config.postNotPublic === undefined) config.postNotPublic = false;
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';

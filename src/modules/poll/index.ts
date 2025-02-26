@@ -11,7 +11,7 @@ export default class extends Module {
 
   @bindThis
   public install() {
-    if (!config.poolEnable) {
+    if (!config.pollEnable) {
       return {};
     }
     setInterval(
