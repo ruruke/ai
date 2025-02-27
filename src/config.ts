@@ -19,9 +19,10 @@ type Config = {
 	autoNotePrompt?: string;
 	autoNoteIntervalMinutes?: string;
 	geminiAutoNoteProbability?: string;
-  aichatRandomTalkEnabled?: string;
+  aichatRandomTalkEnabled?: boolean;
   aichatRandomTalkProbability?: string;
   aichatRandomTalkIntervalMinutes?: string;
+	aichatGroundingWithGoogleSearchAlwaysEnabled?: boolean;
   mecab?: string;
   mecabDic?: string;
   memoryDir?: string;
