@@ -5,6 +5,7 @@ import type { Note } from '@/misskey/note.js';
 import Module from '@/module.js';
 import Stream from '@/stream.js';
 import includes from '@/utils/includes.js';
+import config from '@/config.js';
 import { sleep } from '@/utils/sleep.js';
 
 export default class extends Module {
@@ -83,6 +84,6 @@ export default class extends Module {
     if (includes(note.text, ['ねこ', 'cat'])) return react('😺');
     if (includes(note.text, ['いぬ', 'dog'])) return react('🐶');
 
-    if (includes(note.text, ['藍'])) return react('🙌');
+		if (config.aiName && includes(note.text, config.aiName)) return react('🙌');
   }
 }
