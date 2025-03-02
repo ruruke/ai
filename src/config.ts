@@ -2,6 +2,7 @@ type Config = {
   host: string;
   serverName?: string;
   i: string;
+	aiName?: string[];
   master?: string;
   wsUrl: string;
   apiUrl: string;
@@ -37,6 +38,7 @@ type Config = {
 import { readFile } from 'fs/promises';
 const config = JSON.parse(await readFile(new URL('../config.json', import.meta.url), 'utf8'));
 
+if(!config.aiName) config.aiName = ["藍", "三須木"];
 if(!config.followAllowedHosts) config.followAllowedHosts = [];
 if(!config.followExcludeInstances) config.followExcludeInstances = [];
 if(!config.mazeEnable) config.mazeEnable = false;
