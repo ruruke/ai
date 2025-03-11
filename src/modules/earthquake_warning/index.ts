@@ -14,7 +14,7 @@ interface EarthquakeData {
   report_id: string;
   region_name: string;
   calcintensity: string;
-  magnitude: number; // スペルミスを修正
+  magunitude: number; // スペルミスを修正
   depth: string;
 }
 
@@ -31,7 +31,7 @@ export default class extends Module {
     MAX_ERROR_RETRIES: 5,
     ERROR_COOLDOWN_MS: 60000, // 1分のクールダウン
     MIN_INTENSITY_THRESHOLD: 3,
-    MIN_MAGNITUDE_FOR_WEAK: 4.0,
+    MIN_magunitude_FOR_WEAK: 4.0,
     MAX_REPORT_HISTORY: 100,
     CHECK_INTERVAL_MS: 1000, // 確認間隔を設定値として分離
   };
@@ -147,14 +147,14 @@ export default class extends Module {
     // calcintensityから震度を抽出（空白で分割）
     const intensityParts = data.calcintensity.split(' ');
     const intensity = parseInt(intensityParts[0], 10);
-    const magnitude = data.magnitude;
+    const magunitude = data.magunitude;
 
     // 震度条件の確認
     if (intensity < this.CONFIG.MIN_INTENSITY_THRESHOLD) {
       return; // 震度3未満は無視
     }
 
-    if (intensity < 4 && magnitude < this.CONFIG.MIN_MAGNITUDE_FOR_WEAK) {
+    if (intensity < 4 && magunitude < this.CONFIG.MIN_magunitude_FOR_WEAK) {
       return; // 震度4未満かつマグニチュード4.0未満は無視
     }
 
@@ -201,7 +201,7 @@ export default class extends Module {
     message += '\n\n';
     message += `${this.formatDateTimeJP(new Date())}頃、地震速報を受信しました！\n`;
     message += `${data.region_name}あたりで震度${data.calcintensity}位の揺れが予想されます！\n`;
-    message += `マグニチュードは${data.magnitude}、震源の深さは${data.depth}みたいです。\n`;
+    message += `マグニチュードは${data.magunitude}、震源の深さは${data.depth}みたいです。\n`;
 
     return message;
   }
