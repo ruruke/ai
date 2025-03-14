@@ -50,6 +50,15 @@ Misskey用の日本語Botです。
 	"pollEnable": true,
 	"postNotPublic": false,
 	"defaultVisibility": "public",
+	"earthquakeWarning": {
+		"requestTimeoutMs": 10000,
+		"maxErrorRetries": 5,
+		"errorCooldownMs": 60000,
+		"minIntensityThreshold": 3,
+		"minMagunitudeForWeak": 4.0,
+		"maxReportHistory": 100,
+		"checkIntervalMs": 1000
+	}
 }
 ```
 `npm install` して `npm run build` して `npm start` すれば起動できます
@@ -91,6 +100,15 @@ Misskey用の日本語Botです。
 	"pollEnable": true,
 	"postNotPublic": false,
 	"defaultVisibility": "public",
+	"earthquakeWarning": {
+		"requestTimeoutMs": 10000,
+		"maxErrorRetries": 5,
+		"errorCooldownMs": 60000,
+		"minIntensityThreshold": 3,
+		"minMagunitudeForWeak": 4.0,
+		"maxReportHistory": 100,
+		"checkIntervalMs": 1000
+	}
 }
 ```
 `docker-compose build` して `docker-compose up` すれば起動できます。

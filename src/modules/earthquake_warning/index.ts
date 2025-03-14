@@ -1,6 +1,7 @@
 import { bindThis } from '@/decorators.js';
 import Module from '@/module.js';
 import axios from 'axios';
+import config from '@/config.js';
 
 // 地震データの型定義
 interface EarthquakeData {
@@ -26,16 +27,6 @@ export default class extends Module {
     BASE: 'http://www.kmoni.bosai.go.jp/webservice/hypo/eew/',
   };
 
-  private readonly CONFIG = {
-    REQUEST_TIMEOUT_MS: 10000,
-    MAX_ERROR_RETRIES: 5,
-    ERROR_COOLDOWN_MS: 60000, // 1分のクールダウン
-    MIN_INTENSITY_THRESHOLD: 3,
-    MIN_magunitude_FOR_WEAK: 4.0,
-    MAX_REPORT_HISTORY: 100,
-    CHECK_INTERVAL_MS: 1000, // 確認間隔を設定値として分離
-  };
-
   private diffTimeMs = 0;
   private reportHistory: string[] = [];
   private isLoading = false;
@@ -44,7 +35,7 @@ export default class extends Module {
 
   @bindThis
   public install() {
-    axios.defaults.timeout = this.CONFIG.REQUEST_TIMEOUT_MS;
+    axios.defaults.timeout = config.earthquakeWarning?.requestTimeoutMs ?? 10000;
 
     this.initializeModule()
       .then(this.startMonitoring)
@@ -59,7 +50,7 @@ export default class extends Module {
       if (!this.isLoading) {
         this.checkForEarthquakes().catch(this.handleError);
       }
-    }, this.CONFIG.CHECK_INTERVAL_MS);
+    }, config.earthquakeWarning?.checkIntervalMs ?? 1000);
   }
 
   @bindThis
@@ -67,7 +58,7 @@ export default class extends Module {
     console.error('地震警報モジュールエラー:', error);
     this.errorCount++;
 
-    if (this.errorCount > this.CONFIG.MAX_ERROR_RETRIES) {
+    if (this.errorCount > (config.earthquakeWarning?.maxErrorRetries ?? 5)) {
       console.error('エラー最大再試行回数を超えました。地震警報モジュールを停止します。');
       this.putmsg('地震警報モジュールで継続的なエラーが発生しています。');
 
@@ -79,7 +70,7 @@ export default class extends Module {
 
     setTimeout(() => {
       this.errorCount = Math.max(0, this.errorCount - 1); // 徐々に減少させる
-    }, this.CONFIG.ERROR_COOLDOWN_MS);
+    }, config.earthquakeWarning?.errorCooldownMs ?? 60000);
   }
 
   @bindThis
@@ -150,11 +141,11 @@ export default class extends Module {
     const magunitude = data.magunitude;
 
     // 震度条件の確認
-    if (intensity < this.CONFIG.MIN_INTENSITY_THRESHOLD) {
+    if (intensity < (config.earthquakeWarning?.minIntensityThreshold ?? 3)) {
       return; // 震度3未満は無視
     }
 
-    if (intensity < 4 && magunitude < this.CONFIG.MIN_magunitude_FOR_WEAK) {
+    if (intensity < 4 && magunitude < (config.earthquakeWarning?.minMagunitudeForWeak ?? 4.0)) {
       return; // 震度4未満かつマグニチュード4.0未満は無視
     }
 
@@ -234,8 +225,8 @@ export default class extends Module {
       this.reportHistory.push(reportId);
     }
 
-    // 履歴が最大数を超えたら古いものから削除
-    while (this.reportHistory.length > this.CONFIG.MAX_REPORT_HISTORY) {
+    // 履歴のサイズを制限
+    while (this.reportHistory.length > (config.earthquakeWarning?.maxReportHistory ?? 100)) {
       this.reportHistory.shift();
     }
   }
