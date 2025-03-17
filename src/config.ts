@@ -42,6 +42,15 @@ type Config = {
     maxReportHistory?: number;
     checkIntervalMs?: number;
   };
+  kiatsu?: {
+    locationCode?: string;
+    requestTimeoutMs?: number;
+    maxErrorRetries?: number;
+    updateIntervalMs?: number;
+    postIntervalMs?: number;
+    errorCooldownMs?: number;
+    minPostLevel?: number;
+  };
 };
 
 import { readFile } from 'fs/promises';
@@ -64,6 +73,16 @@ if (config.earthquakeWarning.minIntensityThreshold === undefined) config.earthqu
 if (config.earthquakeWarning.minMagunitudeForWeak === undefined) config.earthquakeWarning.minMagunitudeForWeak = 4.0;
 if (config.earthquakeWarning.maxReportHistory === undefined) config.earthquakeWarning.maxReportHistory = 100;
 if (config.earthquakeWarning.checkIntervalMs === undefined) config.earthquakeWarning.checkIntervalMs = 1000;
+
+// 気圧モジュールの設定デフォルト値
+if (!config.kiatsu) config.kiatsu = {};
+if (config.kiatsu.locationCode === undefined) config.kiatsu.locationCode = "13102"; // 東京都中央区
+if (config.kiatsu.requestTimeoutMs === undefined) config.kiatsu.requestTimeoutMs = 10000;
+if (config.kiatsu.maxErrorRetries === undefined) config.kiatsu.maxErrorRetries = 5;
+if (config.kiatsu.updateIntervalMs === undefined) config.kiatsu.updateIntervalMs = 10 * 60 * 1000;
+if (config.kiatsu.postIntervalMs === undefined) config.kiatsu.postIntervalMs = 12 * 60 * 60 * 1000;
+if (config.kiatsu.errorCooldownMs === undefined) config.kiatsu.errorCooldownMs = 60 * 60 * 1000;
+if (config.kiatsu.minPostLevel === undefined) config.kiatsu.minPostLevel = 2;
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';

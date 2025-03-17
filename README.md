@@ -58,6 +58,15 @@ Misskey用の日本語Botです。
 		"minMagunitudeForWeak": 4.0,
 		"maxReportHistory": 100,
 		"checkIntervalMs": 1000
+	},
+		"kiatsu": {
+		"locationCode": "13102",
+		"requestTimeoutMs": 10000,
+		"maxErrorRetries": 5,
+		"updateIntervalMs": 600000,
+		"postIntervalMs": 43200000,
+		"errorCooldownMs": 3600000,
+		"minPostLevel": 2
 	}
 }
 ```
@@ -108,6 +117,15 @@ Misskey用の日本語Botです。
 		"minMagunitudeForWeak": 4.0,
 		"maxReportHistory": 100,
 		"checkIntervalMs": 1000
+	},
+		"kiatsu": {
+		"locationCode": "13102",
+		"requestTimeoutMs": 10000,
+		"maxErrorRetries": 5,
+		"updateIntervalMs": 600000,
+		"postIntervalMs": 43200000,
+		"errorCooldownMs": 3600000,
+		"minPostLevel": 2
 	}
 }
 ```
