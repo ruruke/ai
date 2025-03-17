@@ -26,7 +26,7 @@ export default class extends Module {
     if (note.reply != null) return;
     if (note.text == null) return;
     if (note.text.includes('@')) return; // (自分または他人問わず)メンションっぽかったらreject
-		if (note.userId === this.ai.account.id) return;
+    if (note.userId === this.ai.account.id) return;
 
     const react = async (reaction: string, immediate = false) => {
       if (!immediate) {
@@ -84,6 +84,6 @@ export default class extends Module {
     if (includes(note.text, ['ねこ', 'cat'])) return react('😺');
     if (includes(note.text, ['いぬ', 'dog'])) return react('🐶');
 
-		if (config.aiName && includes(note.text, config.aiName)) return react('🙌');
+    if (config.aiName && includes(note.text, config.aiName)) return react('🙌');
   }
 }

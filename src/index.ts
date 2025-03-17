@@ -84,36 +84,37 @@ promiseRetry(
 
     log('Starting AiOS...');
 
-	// 藍起動
-	new 藍(account, [
-		new CoreModule(),
-		new AiChatModule(),
-		new ReminderModule(),
-		new TalkModule(),
-		new CheckCustomEmojisModule(),
-		new EmojiModule(),
-		new EmojiReactModule(),
-		new FortuneModule(),
-		new GuessingGameModule(),
-		new KazutoriModule(),
-		new ReversiModule(),
-		new TimerModule(),
-		new DiceModule(),
-		new PingModule(),
-		new WelcomeModule(),
-		new ServerModule(),
-		new FollowModule(),
-		new BirthdayModule(),
-		new ValentineModule(),
-		new KeywordModule(),
-		new MazeModule(),
-		new ChartModule(),
-		new SleepReportModule(),
-		new NotingModule(),
-		new PollModule(),
-		new EarthQuakeWarningModule(),
-		new KiatsuModule(),
-	]);
-}).catch(e => {
-	log(chalk.red('Failed to fetch the account'));
-});
+    // 藍起動
+    new 藍(account, [
+      new CoreModule(),
+      new AiChatModule(),
+      new ReminderModule(),
+      new TalkModule(),
+      new CheckCustomEmojisModule(),
+      new EmojiModule(),
+      new EmojiReactModule(),
+      new FortuneModule(),
+      new GuessingGameModule(),
+      new KazutoriModule(),
+      new ReversiModule(),
+      new TimerModule(),
+      new DiceModule(),
+      new PingModule(),
+      new WelcomeModule(),
+      new ServerModule(),
+      new FollowModule(),
+      new BirthdayModule(),
+      new ValentineModule(),
+      new KeywordModule(),
+      new MazeModule(),
+      new ChartModule(),
+      new SleepReportModule(),
+      new NotingModule(),
+      new PollModule(),
+      new EarthQuakeWarningModule(),
+      new KiatsuModule(),
+    ]);
+  })
+  .catch((e) => {
+    log(chalk.red('Failed to fetch the account'));
+  });

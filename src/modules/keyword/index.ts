@@ -15,7 +15,10 @@ function kanaToHira(str: string) {
 export default class extends Module {
   public readonly name = 'keyword';
 
-  private learnedKeywords!: loki.Collection<{ keyword: string; learnedAt: number }>;
+  private learnedKeywords!: loki.Collection<{
+    keyword: string;
+    learnedAt: number;
+  }>;
 
   @bindThis
   public install() {

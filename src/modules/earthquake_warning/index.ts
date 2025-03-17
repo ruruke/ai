@@ -35,11 +35,10 @@ export default class extends Module {
 
   @bindThis
   public install() {
-    axios.defaults.timeout = config.earthquakeWarning?.requestTimeoutMs ?? 10000;
+    axios.defaults.timeout =
+      config.earthquakeWarning?.requestTimeoutMs ?? 10000;
 
-    this.initializeModule()
-      .then(this.startMonitoring)
-      .catch(this.handleError);
+    this.initializeModule().then(this.startMonitoring).catch(this.handleError);
 
     return {};
   }
@@ -59,7 +58,9 @@ export default class extends Module {
     this.errorCount++;
 
     if (this.errorCount > (config.earthquakeWarning?.maxErrorRetries ?? 5)) {
-      console.error('エラー最大再試行回数を超えました。地震警報モジュールを停止します。');
+      console.error(
+        'エラー最大再試行回数を超えました。地震警報モジュールを停止します。'
+      );
       this.putmsg('地震警報モジュールで継続的なエラーが発生しています。');
 
       if (this.intervalId) {
@@ -145,7 +146,10 @@ export default class extends Module {
       return; // 震度3未満は無視
     }
 
-    if (intensity < 4 && magunitude < (config.earthquakeWarning?.minMagunitudeForWeak ?? 4.0)) {
+    if (
+      intensity < 4 &&
+      magunitude < (config.earthquakeWarning?.minMagunitudeForWeak ?? 4.0)
+    ) {
       return; // 震度4未満かつマグニチュード4.0未満は無視
     }
 
@@ -154,7 +158,10 @@ export default class extends Module {
   }
 
   @bindThis
-  private generateEarthquakeMessage(intensity: number, data: EarthquakeData): string {
+  private generateEarthquakeMessage(
+    intensity: number,
+    data: EarthquakeData
+  ): string {
     let message = '';
 
     // 震度に応じたメッセージを選択
@@ -173,7 +180,7 @@ export default class extends Module {
       message += this.randomChoice([
         'ゆれ……！',
         '地震です！！',
-        '結構揺れます！'
+        '結構揺れます！',
       ]);
     } else if (intensity === 5) {
       message += this.randomChoice([
@@ -183,7 +190,7 @@ export default class extends Module {
     } else if (intensity === 6) {
       message += this.randomChoice([
         '大地震です！！',
-        'めちゃくちゃ揺れます！'
+        'めちゃくちゃ揺れます！',
       ]);
     } else if (intensity >= 7) {
       message += this.randomChoice(['！！　大地震です！！']);
@@ -226,7 +233,10 @@ export default class extends Module {
     }
 
     // 履歴のサイズを制限
-    while (this.reportHistory.length > (config.earthquakeWarning?.maxReportHistory ?? 100)) {
+    while (
+      this.reportHistory.length >
+      (config.earthquakeWarning?.maxReportHistory ?? 100)
+    ) {
       this.reportHistory.shift();
     }
   }

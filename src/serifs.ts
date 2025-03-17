@@ -527,10 +527,15 @@ const defaultSerifs = {
 function getParamNames(func: Function): string[] {
   const funcStr = func.toString();
   // 通常の関数とアロー関数の引数部分を抽出
-  const paramMatch = funcStr.match(/^(?:function\s*[^(]*\(([^)]*)\)|\(([^)]*)\)\s*=>|([^\s=]+)\s*=>)/);
+  const paramMatch = funcStr.match(
+    /^(?:function\s*[^(]*\(([^)]*)\)|\(([^)]*)\)\s*=>|([^\s=]+)\s*=>)/
+  );
   if (!paramMatch) return [];
   const paramsPart = paramMatch[1] || paramMatch[2] || paramMatch[3];
-  return paramsPart.split(',').map(p => p.trim()).filter(p => p);
+  return paramsPart
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p);
 }
 
 function deepMerge(target: any, source: any, parentKey: string = ''): any {
@@ -543,12 +548,16 @@ function deepMerge(target: any, source: any, parentKey: string = ''): any {
       const originalFunc = target[key];
       const paramNames = getParamNames(originalFunc);
       const overrideString = source[key];
-      
+
       target[key] = (...args: any[]) => {
         const params: { [key: string]: any } = {};
-        
+
         // 引数が1つでオブジェクトの場合（例：({name, tension}）はそのプロパティを展開
-        if (args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])) {
+        if (
+          args.length === 1 &&
+          typeof args[0] === 'object' &&
+          !Array.isArray(args[0])
+        ) {
           Object.assign(params, args[0]);
         } else {
           // 通常の引数をパラメータ名にマッピング
@@ -557,11 +566,17 @@ function deepMerge(target: any, source: any, parentKey: string = ''): any {
           });
         }
 
-        return overrideString.replace(/{(\w+)}/g, (_, placeholder) => 
-          params.hasOwnProperty(placeholder) ? params[placeholder] : `{${placeholder}}`
+        return overrideString.replace(/{(\w+)}/g, (_, placeholder) =>
+          params.hasOwnProperty(placeholder)
+            ? params[placeholder]
+            : `{${placeholder}}`
         );
       };
-    } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+    } else if (
+      source[key] &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key])
+    ) {
       target[key] = deepMerge(target[key] || {}, source[key], key);
     } else {
       target[key] = source[key];
@@ -572,7 +587,10 @@ function deepMerge(target: any, source: any, parentKey: string = ''): any {
 
 let computedSerifs = { ...defaultSerifs };
 try {
-  const fileContent = await readFile(new URL('../serifs.yml', import.meta.url), 'utf8');
+  const fileContent = await readFile(
+    new URL('../serifs.yml', import.meta.url),
+    'utf8'
+  );
   const loadedSerifs = yaml.load(fileContent);
   if (loadedSerifs && typeof loadedSerifs === 'object') {
     computedSerifs = deepMerge(computedSerifs, loadedSerifs);

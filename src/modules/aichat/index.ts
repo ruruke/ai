@@ -14,20 +14,20 @@ type AiChat = {
   prompt: string;
   api: string;
   key: string;
-	fromMention: boolean;
-	friendName?: string;
-	grounding?: boolean;
-	history?: { role: string; content: string }[];
+  fromMention: boolean;
+  friendName?: string;
+  grounding?: boolean;
+  history?: { role: string; content: string }[];
 };
 type base64File = {
-	type: string;
-	base64: string;
-	url?: string;
+  type: string;
+  base64: string;
+  url?: string;
 };
 type GeminiOptions = {
-	contents?: GeminiContents[],
-	systemInstruction?: GeminiSystemInstruction,
-	tools?: [{}]
+  contents?: GeminiContents[];
+  systemInstruction?: GeminiSystemInstruction;
+  tools?: [{}];
 };
 type GeminiParts = {
   inlineData?: {
@@ -58,27 +58,27 @@ type AiChatHist = {
     role: string;
     content: string;
   }[];
-	friendName?: string;
-	originalNoteId?: string;
-	fromMention: boolean;
-	grounding?: boolean;
+  friendName?: string;
+  originalNoteId?: string;
+  fromMention: boolean;
+  grounding?: boolean;
 };
 
 type UrlPreview = {
-	title: string;
-	icon: string;
-	description: string;
-	thumbnail: string;
-	player: {
-		url: string
-		width: number;
-		height: number;
-		allow: []
-	}
-	sitename: string;
-	sensitive: boolean;
-	activityPub: string;
-	url: string;
+  title: string;
+  icon: string;
+  description: string;
+  thumbnail: string;
+  player: {
+    url: string;
+    width: number;
+    height: number;
+    allow: [];
+  };
+  sitename: string;
+  sensitive: boolean;
+  activityPub: string;
+  url: string;
 };
 
 const TYPE_GEMINI = 'gemini';
@@ -126,31 +126,31 @@ export default class extends Module {
       'randomTalkIntervalMinutes:' +
         this.randomTalkIntervalMinutes / (60 * 1000)
     );
-		this.log('aichatGroundingWithGoogleSearchAlwaysEnabled:' + config.aichatGroundingWithGoogleSearchAlwaysEnabled);
+    this.log(
+      'aichatGroundingWithGoogleSearchAlwaysEnabled:' +
+        config.aichatGroundingWithGoogleSearchAlwaysEnabled
+    );
 
     if (config.aichatRandomTalkEnabled) {
       setInterval(this.aichatRandomTalk, this.randomTalkIntervalMinutes);
     }
 
-		// ここで geminiPostMode が "auto" もしくは "both" の場合、自動ノート投稿を設定
-		if (
-			config.geminiPostMode === 'auto' ||
-			config.geminiPostMode === 'both'
-		) {
-			const interval =
-				config.autoNoteIntervalMinutes &&
-				!isNaN(parseInt(config.autoNoteIntervalMinutes))
-					? 1000 * 60 * parseInt(config.autoNoteIntervalMinutes)
-					: AUTO_NOTE_DEFAULT_INTERVAL;
-			setInterval(this.autoNote, interval);
-			this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
-			const probability =
-				config.geminiAutoNoteProbability &&
-				!isNaN(parseFloat(config.geminiAutoNoteProbability))
-					? parseFloat(config.geminiAutoNoteProbability)
-					: AUTO_NOTE_DEFAULT_PROBABILITY;
-			this.log('Gemini自動ノート投稿確率: probability=' + probability);
-		}
+    // ここで geminiPostMode が "auto" もしくは "both" の場合、自動ノート投稿を設定
+    if (config.geminiPostMode === 'auto' || config.geminiPostMode === 'both') {
+      const interval =
+        config.autoNoteIntervalMinutes &&
+        !isNaN(parseInt(config.autoNoteIntervalMinutes))
+          ? 1000 * 60 * parseInt(config.autoNoteIntervalMinutes)
+          : AUTO_NOTE_DEFAULT_INTERVAL;
+      setInterval(this.autoNote, interval);
+      this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
+      const probability =
+        config.geminiAutoNoteProbability &&
+        !isNaN(parseFloat(config.geminiAutoNoteProbability))
+          ? parseFloat(config.geminiAutoNoteProbability)
+          : AUTO_NOTE_DEFAULT_PROBABILITY;
+      this.log('Gemini自動ノート投稿確率: probability=' + probability);
+    }
 
     return {
       mentionHook: this.mentionHook,
@@ -180,61 +180,68 @@ export default class extends Module {
       systemInstructionText +=
         'なお、会話相手の名前は' + aiChat.friendName + 'とする。';
     }
-		// ランダムトーク機能(利用者が意図(メンション)せず発動)の場合、ちょっとだけ配慮しておく
-		if (!aiChat.fromMention) {
-			systemInstructionText += 'これらのメッセージは、あなたに対するメッセージではないことを留意し、返答すること(会話相手は突然話しかけられた認識している)。';
-		}
-		// グラウンディングについてもsystemInstructionTextに追記(こうしないとあまり使わないので)
-		if (aiChat.grounding) {
-			systemInstructionText += '返答のルール2:Google search with grounding.';
-		}
-		// URLから情報を取得
-		if (aiChat.question !== undefined) {
-			const urlexp = RegExp('(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%\'-]+)', 'g');
-			const urlarray = [...aiChat.question.matchAll(urlexp)];
-			if (urlarray.length > 0) {
-				for (const url of urlarray) {
-					this.log('URL:' + url[0]);
-					let result: unknown = null;
-					try{
-						result = await urlToJson(url[0]);
-					} catch (err: unknown) {
-						systemInstructionText += '補足として提供されたURLは無効でした:URL=>' + url[0]
-						this.log('Skip url becase error in urlToJson');
-						continue;
-					}
-					const urlpreview: UrlPreview = result as UrlPreview;
-					if (urlpreview.title) {
-						systemInstructionText +=
-							'補足として提供されたURLの情報は次の通り:URL=>' + urlpreview.url
-							+'サイト名('+urlpreview.sitename+')、';
-						if (!urlpreview.sensitive) {
-							systemInstructionText +=
-							'タイトル('+urlpreview.title+')、'
-							+ '説明('+urlpreview.description+')、'
-							+ '質問にあるURLとサイト名・タイトル・説明を組み合わせ、回答の参考にすること。'
-							;
-							this.log('urlpreview.sitename:' + urlpreview.sitename);
-							this.log('urlpreview.title:' + urlpreview.title);
-							this.log('urlpreview.description:' + urlpreview.description);
-						} else {
-							systemInstructionText +=
-							'これはセンシティブなURLの可能性があるため、質問にあるURLとサイト名のみで、回答の参考にすること(使わなくても良い)。'
-							;
-						}
-					} else {
-						// 多分ここにはこないが念のため
-						this.log('urlpreview.title is nothing');
-					}
-				}
-			}
-		}
+    // ランダムトーク機能(利用者が意図(メンション)せず発動)の場合、ちょっとだけ配慮しておく
+    if (!aiChat.fromMention) {
+      systemInstructionText +=
+        'これらのメッセージは、あなたに対するメッセージではないことを留意し、返答すること(会話相手は突然話しかけられた認識している)。';
+    }
+    // グラウンディングについてもsystemInstructionTextに追記(こうしないとあまり使わないので)
+    if (aiChat.grounding) {
+      systemInstructionText += '返答のルール2:Google search with grounding.';
+    }
+    // URLから情報を取得
+    if (aiChat.question !== undefined) {
+      const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+      const urlarray = [...aiChat.question.matchAll(urlexp)];
+      if (urlarray.length > 0) {
+        for (const url of urlarray) {
+          this.log('URL:' + url[0]);
+          let result: unknown = null;
+          try {
+            result = await urlToJson(url[0]);
+          } catch (err: unknown) {
+            systemInstructionText +=
+              '補足として提供されたURLは無効でした:URL=>' + url[0];
+            this.log('Skip url becase error in urlToJson');
+            continue;
+          }
+          const urlpreview: UrlPreview = result as UrlPreview;
+          if (urlpreview.title) {
+            systemInstructionText +=
+              '補足として提供されたURLの情報は次の通り:URL=>' +
+              urlpreview.url +
+              'サイト名(' +
+              urlpreview.sitename +
+              ')、';
+            if (!urlpreview.sensitive) {
+              systemInstructionText +=
+                'タイトル(' +
+                urlpreview.title +
+                ')、' +
+                '説明(' +
+                urlpreview.description +
+                ')、' +
+                '質問にあるURLとサイト名・タイトル・説明を組み合わせ、回答の参考にすること。';
+              this.log('urlpreview.sitename:' + urlpreview.sitename);
+              this.log('urlpreview.title:' + urlpreview.title);
+              this.log('urlpreview.description:' + urlpreview.description);
+            } else {
+              systemInstructionText +=
+                'これはセンシティブなURLの可能性があるため、質問にあるURLとサイト名のみで、回答の参考にすること(使わなくても良い)。';
+            }
+          } else {
+            // 多分ここにはこないが念のため
+            this.log('urlpreview.title is nothing');
+          }
+        }
+      }
+    }
     const systemInstruction: GeminiSystemInstruction = {
       role: 'system',
       parts: [{ text: systemInstructionText }],
     };
 
-		// ファイルが存在する場合、ファイルを添付して問い合わせ
+    // ファイルが存在する場合、ファイルを添付して問い合わせ
     parts = [{ text: aiChat.question }];
     if (files.length >= 1) {
       for (const file of files) {
@@ -258,14 +265,14 @@ export default class extends Module {
     }
     contents.push({ role: 'user', parts: parts });
 
-		let geminiOptions:GeminiOptions = {
-			contents: contents,
-			systemInstruction: systemInstruction,
-		};
-		// gemini api grounding support. ref:https://github.com/google-gemini/cookbook/blob/09f3b17df1751297798c2b498cae61c6bf710edc/quickstarts/Search_Grounding.ipynb
-		if (aiChat.grounding) {
-			geminiOptions.tools = [{google_search:{}}];
-		}
+    let geminiOptions: GeminiOptions = {
+      contents: contents,
+      systemInstruction: systemInstruction,
+    };
+    // gemini api grounding support. ref:https://github.com/google-gemini/cookbook/blob/09f3b17df1751297798c2b498cae61c6bf710edc/quickstarts/Search_Grounding.ipynb
+    if (aiChat.grounding) {
+      geminiOptions.tools = [{ google_search: {} }];
+    }
 
     let options = {
       url: aiChat.api,
@@ -276,7 +283,7 @@ export default class extends Module {
     };
     this.log(JSON.stringify(options));
     let res_data: any = null;
-		let responseText:string = '';
+    let responseText: string = '';
     try {
       res_data = await got
         .post(options, { parseJson: (res: string) => JSON.parse(res) })
@@ -284,44 +291,80 @@ export default class extends Module {
       this.log(JSON.stringify(res_data));
       if (res_data.hasOwnProperty('candidates')) {
         if (res_data.candidates?.length > 0) {
-					// 結果を取得
+          // 結果を取得
           if (res_data.candidates[0].hasOwnProperty('content')) {
             if (res_data.candidates[0].content.hasOwnProperty('parts')) {
-							for (let i = 0; i < res_data.candidates[0].content.parts.length; i++) {
-								if (res_data.candidates[0].content.parts[i].hasOwnProperty('text')) {
-									responseText += res_data.candidates[0].content.parts[i].text;
-								}
+              for (
+                let i = 0;
+                i < res_data.candidates[0].content.parts.length;
+                i++
+              ) {
+                if (
+                  res_data.candidates[0].content.parts[i].hasOwnProperty('text')
+                ) {
+                  responseText += res_data.candidates[0].content.parts[i].text;
+                }
               }
             }
           }
         }
-				// groundingMetadataを取得
-				let groundingMetadata = '';
-				if (res_data.candidates[0].hasOwnProperty('groundingMetadata')) {
-					// 参考サイト情報
-					if (res_data.candidates[0].groundingMetadata.hasOwnProperty('groundingChunks')) {
-						// 参考サイトが多すぎる場合があるので、3つに制限
-						let checkMaxLength = res_data.candidates[0].groundingMetadata.groundingChunks.length;
-						if (res_data.candidates[0].groundingMetadata.groundingChunks.length > 3) {
-							checkMaxLength = 3;
-						}
-						for (let i = 0; i < checkMaxLength; i++) {
-							if (res_data.candidates[0].groundingMetadata.groundingChunks[i].hasOwnProperty('web')) {
-								if (res_data.candidates[0].groundingMetadata.groundingChunks[i].web.hasOwnProperty('uri')
-										&& res_data.candidates[0].groundingMetadata.groundingChunks[i].web.hasOwnProperty('title')) {
-									groundingMetadata += `参考(${i+1}): [${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.title}](${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.uri})\n`;
-								}
-							}
-						}
-					}
-					// 検索ワード
-					if (res_data.candidates[0].groundingMetadata.hasOwnProperty('webSearchQueries')) {
-						if (res_data.candidates[0].groundingMetadata.webSearchQueries.length > 0) {
-							groundingMetadata += '検索ワード: ' + res_data.candidates[0].groundingMetadata.webSearchQueries.join(',') + '\n';
-						}
-					}
-				}
-				responseText += groundingMetadata;
+        // groundingMetadataを取得
+        let groundingMetadata = '';
+        if (res_data.candidates[0].hasOwnProperty('groundingMetadata')) {
+          // 参考サイト情報
+          if (
+            res_data.candidates[0].groundingMetadata.hasOwnProperty(
+              'groundingChunks'
+            )
+          ) {
+            // 参考サイトが多すぎる場合があるので、3つに制限
+            let checkMaxLength =
+              res_data.candidates[0].groundingMetadata.groundingChunks.length;
+            if (
+              res_data.candidates[0].groundingMetadata.groundingChunks.length >
+              3
+            ) {
+              checkMaxLength = 3;
+            }
+            for (let i = 0; i < checkMaxLength; i++) {
+              if (
+                res_data.candidates[0].groundingMetadata.groundingChunks[
+                  i
+                ].hasOwnProperty('web')
+              ) {
+                if (
+                  res_data.candidates[0].groundingMetadata.groundingChunks[
+                    i
+                  ].web.hasOwnProperty('uri') &&
+                  res_data.candidates[0].groundingMetadata.groundingChunks[
+                    i
+                  ].web.hasOwnProperty('title')
+                ) {
+                  groundingMetadata += `参考(${i + 1}): [${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.title}](${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.uri})\n`;
+                }
+              }
+            }
+          }
+          // 検索ワード
+          if (
+            res_data.candidates[0].groundingMetadata.hasOwnProperty(
+              'webSearchQueries'
+            )
+          ) {
+            if (
+              res_data.candidates[0].groundingMetadata.webSearchQueries.length >
+              0
+            ) {
+              groundingMetadata +=
+                '検索ワード: ' +
+                res_data.candidates[0].groundingMetadata.webSearchQueries.join(
+                  ','
+                ) +
+                '\n';
+            }
+          }
+        }
+        responseText += groundingMetadata;
       }
     } catch (err: unknown) {
       this.log('Error By Call Gemini');
@@ -329,7 +372,7 @@ export default class extends Module {
         this.log(`${err.name}\n${err.message}\n${err.stack}`);
       }
     }
-		return responseText;
+    return responseText;
   }
 
   @bindThis
@@ -407,7 +450,7 @@ export default class extends Module {
       postId: msg.id,
       createdAt: Date.now(),
       type: type,
-			fromMention: true,
+      fromMention: true,
     };
     if (msg.quoteId) {
       const quotedNote = await this.ai.api('notes/show', {
@@ -435,21 +478,25 @@ export default class extends Module {
     this.log('contextHook...');
     if (msg.text == null) return false;
 
-		// msg.idをもとにnotes/conversationを呼び出し、該当のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id });
+    // msg.idをもとにnotes/conversationを呼び出し、該当のidかチェック
+    const conversationData = await this.ai.api('notes/conversation', {
+      noteId: msg.id,
+    });
 
-			// 結果がnullやサイズ0の場合は終了
-			if (conversationData == null || conversationData.length == 0 ) {
-				this.log('conversationData is nothing.');
-				return false;
-			}
+    // 結果がnullやサイズ0の場合は終了
+    if (conversationData == null || conversationData.length == 0) {
+      this.log('conversationData is nothing.');
+      return false;
+    }
 
-			const relation = await this.ai.api('users/relation', { userId: msg.userId });
-			if (relation[0]?.isFollowing !== true) {
-				this.log('The user is not following me: ' + msg.userId);
-				msg.reply('あなたはaichatを実行する権限がありません。');
-				return false;
-			}
+    const relation = await this.ai.api('users/relation', {
+      userId: msg.userId,
+    });
+    if (relation[0]?.isFollowing !== true) {
+      this.log('The user is not following me: ' + msg.userId);
+      msg.reply('あなたはaichatを実行する権限がありません。');
+      return false;
+    }
 
     let exist: AiChatHist | null = null;
     for (const message of conversationData) {
@@ -496,28 +543,32 @@ export default class extends Module {
     const choseNote =
       interestedNotes[Math.floor(Math.random() * interestedNotes.length)];
 
-		// aichatHistに該当のポストが見つかった場合は会話中のためaichatRandomTalkでは対応しない
-		let exist : AiChatHist | null = null;
+    // aichatHistに該当のポストが見つかった場合は会話中のためaichatRandomTalkでは対応しない
+    let exist: AiChatHist | null = null;
 
-		// 選択されたノート自体が会話中のidかチェック
-		exist = this.aichatHist.findOne({
-			postId: choseNote.id
-		});
-		if (exist != null) return false;
+    // 選択されたノート自体が会話中のidかチェック
+    exist = this.aichatHist.findOne({
+      postId: choseNote.id,
+    });
+    if (exist != null) return false;
 
-		// msg.idをもとにnotes/childrenを呼び出し、会話中のidかチェック
-		const childrenData = await this.ai.api('notes/children', { noteId: choseNote.id });
-		if (childrenData != undefined) {
-			for (const message of childrenData) {
-				exist = this.aichatHist.findOne({
-					postId: message.id
-				});
-				if (exist != null) return false;
-			}
-		}
+    // msg.idをもとにnotes/childrenを呼び出し、会話中のidかチェック
+    const childrenData = await this.ai.api('notes/children', {
+      noteId: choseNote.id,
+    });
+    if (childrenData != undefined) {
+      for (const message of childrenData) {
+        exist = this.aichatHist.findOne({
+          postId: message.id,
+        });
+        if (exist != null) return false;
+      }
+    }
 
-		// msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: choseNote.id });
+    // msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
+    const conversationData = await this.ai.api('notes/conversation', {
+      noteId: choseNote.id,
+    });
 
     if (conversationData != undefined) {
       for (const message of conversationData) {
@@ -526,11 +577,11 @@ export default class extends Module {
       }
     }
 
-		exist = this.aichatHist.findOne({ originalNoteId: choseNote.id });
-		if (exist != null) {
-			this.log('Already replied to this note via originalNoteId');
-			return false;
-		}
+    exist = this.aichatHist.findOne({ originalNoteId: choseNote.id });
+    if (exist != null) {
+      this.log('Already replied to this note via originalNoteId');
+      return false;
+    }
 
     // const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
     // if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
@@ -545,7 +596,7 @@ export default class extends Module {
         postId: choseNote.id,
         createdAt: Date.now(),
         type: TYPE_GEMINI,
-				fromMention: false,
+        fromMention: false,
       };
 
       let targetedMessage = choseNote;
@@ -572,7 +623,9 @@ export default class extends Module {
     ) {
       const probability = Number.parseFloat(config.geminiAutoNoteProbability);
       if (Math.random() >= probability) {
-        this.log(`Gemini自動ノート投稿の確率によりスキップされました: probability=${probability}`);
+        this.log(
+          `Gemini自動ノート投稿の確率によりスキップされました: probability=${probability}`
+        );
         return;
       }
     }
@@ -586,12 +639,12 @@ export default class extends Module {
       prompt: config.autoNotePrompt,
       api: GEMINI_API,
       key: config.geminiApiKey,
-			fromMention: false,
+      fromMention: false,
     };
     const base64Files: base64File[] = []; // 自動ノートの場合はファイルは添付しない
     const text = await this.genTextByGemini(aiChat, base64Files);
     if (text) {
-			this.ai.post({ text: text + ' #aichat' });
+      this.ai.post({ text: text + ' #aichat' });
     } else {
       this.log('Gemini自動ノートの生成に失敗しました。');
     }
@@ -599,29 +652,32 @@ export default class extends Module {
 
   @bindThis
   private async handleAiChat(exist: AiChatHist, msg: Message) {
-		let text: string | null, aiChat: AiChat;
+    let text: string | null, aiChat: AiChat;
     let prompt: string = '';
     if (config.prompt) {
       prompt = config.prompt;
     }
 
-		// groudingサポート
-		if (msg.includes([GROUNDING_TARGET])) {
-			exist.grounding = true;
-		}
-		// 設定で、デフォルトgroundingがONの場合、メンションから来たときは強制的にgroundingをONとする(ランダムトークの場合は勝手にGoogle検索するのちょっと気が引けるため...)
-		if (exist.fromMention && config.aichatGroundingWithGoogleSearchAlwaysEnabled) {
-			exist.grounding = true;
-		}
+    // groudingサポート
+    if (msg.includes([GROUNDING_TARGET])) {
+      exist.grounding = true;
+    }
+    // 設定で、デフォルトgroundingがONの場合、メンションから来たときは強制的にgroundingをONとする(ランダムトークの場合は勝手にGoogle検索するのちょっと気が引けるため...)
+    if (
+      exist.fromMention &&
+      config.aichatGroundingWithGoogleSearchAlwaysEnabled
+    ) {
+      exist.grounding = true;
+    }
 
     const reName = RegExp(this.name, 'i');
     const extractedText = msg.extractedText;
     if (extractedText == undefined || extractedText.length == 0) return false;
 
     let question = extractedText
-			.replace(reName, '')
-			.replace(GROUNDING_TARGET, '')
-			.trim();
+      .replace(reName, '')
+      .replace(GROUNDING_TARGET, '')
+      .trim();
 
     const friend: Friend | null = this.ai.lookupFriend(msg.userId);
     let friendName: string | undefined;
@@ -645,14 +701,14 @@ export default class extends Module {
       api: GEMINI_API,
       key: config.geminiApiKey,
       history: exist.history,
-			friendName: friendName,
-			fromMention: exist.fromMention
+      friendName: friendName,
+      fromMention: exist.fromMention,
     };
 
     const base64Files: base64File[] = await this.note2base64File(msg.id);
     text = await this.genTextByGemini(aiChat, base64Files);
 
-		if (text == null || text == '') {
+    if (text == null || text == '') {
       this.log(
         'The result is invalid. It seems that tokens and other items need to be reviewed.'
       );
@@ -675,9 +731,9 @@ export default class extends Module {
         type: exist.type,
         api: aiChat.api,
         history: exist.history,
-				grounding: exist.grounding,
-				fromMention: exist.fromMention,
-				originalNoteId: exist.postId,
+        grounding: exist.grounding,
+        fromMention: exist.fromMention,
+        originalNoteId: exist.postId,
       });
 
       this.subscribeReply(reply.id, reply.id);

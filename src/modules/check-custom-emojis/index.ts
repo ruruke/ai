@@ -149,7 +149,7 @@ export default class extends Module {
     if (
       !msg.includes([
         'カスタム絵文字チェック',
-				'カスタムえもじチェック',
+        'カスタムえもじチェック',
         'カスタムえもじを調べて',
         'カスタムえもじを確認',
       ])

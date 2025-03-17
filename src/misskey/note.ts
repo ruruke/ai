@@ -1,6 +1,6 @@
 export type Note = {
   id: string;
-	userId: string;
+  userId: string;
   text: string | null;
   reply: any | null;
   poll?: {
