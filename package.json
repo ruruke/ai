@@ -8,7 +8,8 @@
     "build": "tspc",
     "test": "jest",
     "lint": "biome lint src --write",
-    "format": "biome format src --write"
+    "format": "biome format src --write",
+    "preinstall": "npx only-allow pnpm"
   },
   "dependencies": {
     "@types/lokijs": "1.5.14",
