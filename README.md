@@ -8,6 +8,7 @@
 - 反応する言葉を追加
 - セリフをコンフィグからロード出来るように
 - aichatを改善(色々)
+- pnpmへ移行
 
 ## これなに
 Misskey用の日本語Botです。
@@ -70,7 +71,7 @@ Misskey用の日本語Botです。
 	}
 }
 ```
-`npm install` して `npm run build` して `npm start` すれば起動できます
+`pnpm install` して `pnpm build` して `pnpm start` すれば起動できます
 
 ## Dockerで動かす
 まず適当なディレクトリに `git clone` します。
