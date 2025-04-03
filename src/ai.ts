@@ -61,7 +61,7 @@ export default class 藍 {
   private meta: loki.Collection<Meta>;
 
   private contexts: loki.Collection<{
-		isChat: boolean;
+    isChat: boolean;
     noteId?: string;
     userId?: string;
     module: string;
@@ -193,44 +193,52 @@ export default class 藍 {
       this.onNotification(data);
     });
 
+    // チャット
+    mainStream.on('newChatMessage', (data) => {
+      const fromUser = data.fromUser;
+      if (data.fromUserId == this.account.id) return; // 自分は弾く
+      this.onReceiveMessage(new Message(this, data, true));
 
- 		// チャット
- 		mainStream.on('newChatMessage', data => {
-			const fromUser = data.fromUser;
-			if (data.fromUserId == this.account.id) return; // 自分は弾く
-			this.onReceiveMessage(new Message(this, data, true));
+      // 一定期間 chatUser / chatRoom のストリームに接続して今後のやり取りに備える
+      if (data.fromUserId) {
+        const chatStream = this.connection.connectToChannel('chatUser', {
+          otherId: data.fromUserId,
+        });
 
-			// 一定期間 chatUser / chatRoom のストリームに接続して今後のやり取りに備える
-			if (data.fromUserId) {
-				const chatStream = this.connection.connectToChannel('chatUser', {
-					otherId: data.fromUserId,
-				});
+        let timer;
+        function setTimer() {
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(
+            () => {
+              chatStream.dispose();
+            },
+            1000 * 60 * 2
+          );
+        }
+        setTimer();
 
-				let timer;
-				function setTimer() {
-					if (timer) clearTimeout(timer);
-					timer = setTimeout(() => {
-						chatStream.dispose();
-					}, 1000 * 60 * 2);
-				}
-				setTimer();
-
-				chatStream.on('message', (data) => {
-					if (data.fromUserId == this.account.id) return; // 自分は弾く
-					chatStream.send('read', {
-						id: data.id,
-					});
-					this.onReceiveMessage(new Message(this, {
-						...data,
-						// fromUserは省略されてくるため
-						fromUser: fromUser,
-					}, true));
-					setTimer();
-				});
-			} else {
-				// TODO: room
-			}
-		});
+        chatStream.on('message', (data) => {
+          if (data.fromUserId == this.account.id) return; // 自分は弾く
+          chatStream.send('read', {
+            id: data.id,
+          });
+          this.onReceiveMessage(
+            new Message(
+              this,
+              {
+                ...data,
+                // fromUserは省略されてくるため
+                fromUser: fromUser,
+              },
+              true
+            )
+          );
+          setTimer();
+        });
+      } else {
+        // TODO: room
+      }
+    });
     //#endregion
 
     // Install modules
@@ -269,16 +277,22 @@ export default class 藍 {
       return;
     }
 
-		const isNoContext = !msg.isChat && msg.replyId == null;
+    const isNoContext = !msg.isChat && msg.replyId == null;
 
     // Look up the context
-		const context = isNoContext ? null : this.contexts.findOne(msg.isChat ? {
-			isChat: true,
-			userId: msg.userId
-		} : {
-			isChat: false,
-			noteId: msg.replyId
-		});
+    const context = isNoContext
+      ? null
+      : this.contexts.findOne(
+          msg.isChat
+            ? {
+                isChat: true,
+                userId: msg.userId,
+              }
+            : {
+                isChat: false,
+                noteId: msg.replyId,
+              }
+        );
 
     let reaction: string | null = 'love';
     let immediate: boolean = false;
@@ -322,16 +336,16 @@ export default class 藍 {
     }
 
     // リアクションする
-		if (msg.isChat) {
-			// TODO: リアクション？
-		} else {
-			// リアクションする
-			if (reaction) {
-				this.api('notes/reactions/create', {
-					noteId: msg.id,
-					reaction: reaction
-				});
-			}
+    if (msg.isChat) {
+      // TODO: リアクション？
+    } else {
+      // リアクションする
+      if (reaction) {
+        this.api('notes/reactions/create', {
+          noteId: msg.id,
+          reaction: reaction,
+        });
+      }
     }
   }
 
@@ -445,8 +459,11 @@ export default class 藍 {
    */
   @bindThis
   public sendMessage(userId: any, param: any) {
-		return this.api('chat/messages/create-to-user', Object.assign({
-			toUserId: userId,
+    return this.api(
+      'chat/messages/create-to-user',
+      Object.assign(
+        {
+          toUserId: userId,
         },
         param
       )
@@ -471,30 +488,40 @@ export default class 藍 {
       .json();
   }
 
-	/**
-	 * コンテキストを生成し、ユーザーからの返信を待ち受けます
-	 * @param module 待ち受けるモジュール名
-	 * @param key コンテキストを識別するためのキー
-	 * @param isChat チャット上のコンテキストかどうか
-	 * @param id チャット上のコンテキストならばチャット相手のID、そうでないなら待ち受ける投稿のID
-	 * @param data コンテキストに保存するオプションのデータ
-	 */
-	@bindThis
-	public subscribeReply(module: Module, key: string | null, isChat: boolean, id: string, data?: any) {
-		this.contexts.insertOne(isChat ? {
-			isChat: true,
-			userId: id,
-			module: module.name,
-			key: key,
-			data: data
-		} : {
-			isChat: false,
-			noteId: id,
-			module: module.name,
-			key: key,
-			data: data
-		});
-	}
+  /**
+   * コンテキストを生成し、ユーザーからの返信を待ち受けます
+   * @param module 待ち受けるモジュール名
+   * @param key コンテキストを識別するためのキー
+   * @param isChat チャット上のコンテキストかどうか
+   * @param id チャット上のコンテキストならばチャット相手のID、そうでないなら待ち受ける投稿のID
+   * @param data コンテキストに保存するオプションのデータ
+   */
+  @bindThis
+  public subscribeReply(
+    module: Module,
+    key: string | null,
+    isChat: boolean,
+    id: string,
+    data?: any
+  ) {
+    this.contexts.insertOne(
+      isChat
+        ? {
+            isChat: true,
+            userId: id,
+            module: module.name,
+            key: key,
+            data: data,
+          }
+        : {
+            isChat: false,
+            noteId: id,
+            module: module.name,
+            key: key,
+            data: data,
+          }
+    );
+  }
 
   /**
    * 返信の待ち受けを解除します

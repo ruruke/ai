@@ -14,7 +14,7 @@ export default class extends Module {
   private reminds!: loki.Collection<{
     userId: string;
     id: string;
-		isChat: boolean;
+    isChat: boolean;
     thing: string | null;
     quoteId: string | null;
     times: number; // 催促した回数(使うのか？)
@@ -104,13 +104,18 @@ export default class extends Module {
     });
 
     // メンションをsubscribe
-		this.subscribeReply(remind!.id, msg.isChat, msg.isChat ? msg.userId : msg.id, {
-      id: remind!.id,
-    });
+    this.subscribeReply(
+      remind!.id,
+      msg.isChat,
+      msg.isChat ? msg.userId : msg.id,
+      {
+        id: remind!.id,
+      }
+    );
 
     if (msg.quoteId) {
       // 引用元をsubscribe
-			this.subscribeReply(remind!.id, false, msg.quoteId, {
+      this.subscribeReply(remind!.id, false, msg.quoteId, {
         id: remind!.id,
       });
     }
@@ -156,7 +161,7 @@ export default class extends Module {
       msg.reply(serifs.reminder.doneFromInvalidUser);
       return;
     } else {
-			if (msg.isChat) this.unsubscribeReply(key);
+      if (msg.isChat) this.unsubscribeReply(key);
       return false;
     }
   }
@@ -174,31 +179,40 @@ export default class extends Module {
     const friend = this.ai.lookupFriend(remind.userId);
     if (friend == null) return; // 処理の流れ上、実際にnullになることは無さそうだけど一応
 
-		let reply;
-		if (remind.isChat) {
-			this.ai.sendMessage(friend.userId, {
-				text: serifs.reminder.notifyWithThing(remind.thing, friend.name)
-			});
-		} else {
-			try {
-				reply = await this.ai.post({
-					renoteId: remind.thing == null && remind.quoteId ? remind.quoteId : remind.id,
-					text: acct(friend.doc.user) + ' ' + serifs.reminder.notify(friend.name)
-				});
-			} catch (err) {
-				// renote対象が消されていたらリマインダー解除
-				if (err.statusCode === 400) {
-					this.unsubscribeReply(remind.thing == null && remind.quoteId ? remind.quoteId : remind.id);
-					this.reminds.remove(remind);
-					return;
-				}
-				return;
-			}
-		}
+    let reply;
+    if (remind.isChat) {
+      this.ai.sendMessage(friend.userId, {
+        text: serifs.reminder.notifyWithThing(remind.thing, friend.name),
+      });
+    } else {
+      try {
+        reply = await this.ai.post({
+          renoteId:
+            remind.thing == null && remind.quoteId ? remind.quoteId : remind.id,
+          text:
+            acct(friend.doc.user) + ' ' + serifs.reminder.notify(friend.name),
+        });
+      } catch (err) {
+        // renote対象が消されていたらリマインダー解除
+        if (err.statusCode === 400) {
+          this.unsubscribeReply(
+            remind.thing == null && remind.quoteId ? remind.quoteId : remind.id
+          );
+          this.reminds.remove(remind);
+          return;
+        }
+        return;
+      }
+    }
 
-		this.subscribeReply(remind.id, remind.isChat, remind.isChat ? remind.userId : reply.id, {
-			id: remind.id
-		});
+    this.subscribeReply(
+      remind.id,
+      remind.isChat,
+      remind.isChat ? remind.userId : reply.id,
+      {
+        id: remind.id,
+      }
+    );
 
     // タイマーセット
     this.setTimeoutWithPersistence(NOTIFY_INTERVAL, {
