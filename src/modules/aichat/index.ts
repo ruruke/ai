@@ -62,6 +62,7 @@ type AiChatHist = {
   originalNoteId?: string;
   fromMention: boolean;
   grounding?: boolean;
+  youtubeUrls?: string[]; // YouTubeのURLを保存するための配列を追加
 };
 
 type UrlPreview = {
@@ -235,11 +236,10 @@ export default class extends Module {
       systemInstructionText += '返答のルール2:Google search with grounding.';
     }
 
-    // YouTubeリンクの検出とpartsへの追加
+    // URLから情報を取得
     let youtubeURLs: string[] = [];
     let hasYoutubeUrl = false;
 
-    // URLから情報を取得
     if (aiChat.question !== undefined) {
       const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
       const urlarray = [...aiChat.question.matchAll(urlexp)];
@@ -297,6 +297,29 @@ export default class extends Module {
         }
       }
     }
+
+    // 保存されたYouTubeのURLを会話履歴から取得
+    if (aiChat.history && aiChat.history.length > 0) {
+      // historyの最初のユーザーメッセージをチェック
+      const firstUserMessage = aiChat.history.find(entry => entry.role === 'user');
+      if (firstUserMessage) {
+        const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+        const urlarray = [...firstUserMessage.content.matchAll(urlexp)];
+        
+        for (const url of urlarray) {
+          if (this.isYoutubeUrl(url[0])) {
+            const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
+            // 重複を避ける
+            if (!youtubeURLs.includes(normalizedUrl)) {
+              this.log('Found YouTube URL in history: ' + normalizedUrl);
+              youtubeURLs.push(normalizedUrl);
+              hasYoutubeUrl = true;
+            }
+          }
+        }
+      }
+    }
+
     const systemInstruction: GeminiSystemInstruction = {
       role: 'system',
       parts: [{ text: systemInstructionText }],
@@ -784,6 +807,23 @@ export default class extends Module {
       .replace(GROUNDING_TARGET, '')
       .trim();
 
+    // YouTubeリンクの検出（既存の会話にYouTubeリンクがある場合はそれを引き継ぐ）
+    const youtubeUrls: string[] = exist.youtubeUrls || [];
+    
+    // 新しい質問からYouTubeリンクを検出
+    const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+    const urlarray = [...question.matchAll(urlexp)];
+    if (urlarray.length > 0) {
+      for (const url of urlarray) {
+        if (this.isYoutubeUrl(url[0])) {
+          const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
+          if (!youtubeUrls.includes(normalizedUrl)) {
+            youtubeUrls.push(normalizedUrl);
+          }
+        }
+      }
+    }
+
     const friend: Friend | null = this.ai.lookupFriend(msg.userId);
     let friendName: string | undefined;
     if (friend != null && friend.name != null) {
@@ -852,6 +892,7 @@ export default class extends Module {
         grounding: exist.grounding,
         fromMention: exist.fromMention,
         originalNoteId: exist.postId,
+        youtubeUrls: youtubeUrls.length > 0 ? youtubeUrls : undefined, // YouTubeのURLを保存
       });
 
       this.subscribeReply(reply.id, false, reply.id);
