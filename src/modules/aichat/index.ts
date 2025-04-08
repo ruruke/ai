@@ -854,7 +854,7 @@ export default class extends Module {
         originalNoteId: exist.postId,
       });
 
-      this.subscribeReply(reply.id, reply.id);
+      this.subscribeReply(reply.id, false, reply.id);
       this.setTimeoutWithPersistence(TIMEOUT_TIME, { id: reply.id });
     });
     return true;
