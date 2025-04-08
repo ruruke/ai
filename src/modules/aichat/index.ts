@@ -161,7 +161,41 @@ export default class extends Module {
 
   @bindThis
   private isYoutubeUrl(url: string): boolean {
-    return url.includes('www.youtube.com') || url.includes('youtu.be');
+    return (
+      url.includes('www.youtube.com') ||
+      url.includes('m.youtube.com') ||
+      url.includes('youtu.be')
+    );
+  }
+
+  @bindThis
+  private normalizeYoutubeUrl(url: string): string {
+    try {
+      // URLオブジェクトを使用してパラメータを正確に解析
+      const urlObj = new URL(url);
+      let videoId = '';
+
+      // youtu.beドメインの場合
+      if (urlObj.hostname.includes('youtu.be')) {
+        // パスから直接ビデオIDを取得
+        videoId = urlObj.pathname.split('/')[1];
+      }
+      // youtube.comドメインの場合
+      else if (urlObj.hostname.includes('youtube.com')) {
+        // URLSearchParamsを使用してvパラメータを取得
+        videoId = urlObj.searchParams.get('v') || '';
+      }
+
+      // ビデオIDが見つかった場合は標準形式のURLを返す
+      if (videoId) {
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+    } catch (error) {
+      this.log(`YouTube URL解析エラー: ${error}`);
+    }
+
+    // 解析に失敗した場合は元のURLを返す
+    return url;
   }
 
   @bindThis
@@ -197,6 +231,7 @@ export default class extends Module {
 
     // YouTubeリンクの検出とpartsへの追加
     let youtubeURLs: string[] = [];
+    let hasYoutubeUrl = false;
 
     // URLから情報を取得
     if (aiChat.question !== undefined) {
@@ -209,7 +244,10 @@ export default class extends Module {
           // YouTubeのURLの場合は特別処理
           if (this.isYoutubeUrl(url[0])) {
             this.log('YouTube URL detected: ' + url[0]);
-            youtubeURLs.push(url[0]);
+            const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
+            this.log('Normalized YouTube URL: ' + normalizedUrl);
+            youtubeURLs.push(normalizedUrl);
+            hasYoutubeUrl = true;
             continue;
           }
 
@@ -298,8 +336,9 @@ export default class extends Module {
       contents: contents,
       systemInstruction: systemInstruction,
     };
-    // gemini api grounding support. ref:https://github.com/google-gemini/cookbook/blob/09f3b17df1751297798c2b498cae61c6bf710edc/quickstarts/Search_Grounding.ipynb
-    if (aiChat.grounding) {
+
+    // YouTubeURLがある場合はグラウンディングを無効化
+    if (aiChat.grounding && !hasYoutubeUrl) {
       geminiOptions.tools = [{ google_search: {} }];
     }
 
