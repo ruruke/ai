@@ -704,6 +704,16 @@ export default class extends Module {
 
   @bindThis
   private async autoNote() {
+    // 現在時刻をチェックして深夜かどうか判断する（22時〜6時を深夜とする）
+    if (config.autoNoteDisableNightPosting) {
+      const now = new Date();
+      const hour = now.getHours();
+      if (hour >= 23 || hour < 5) {
+        this.log('深夜のため自動ノート投稿をスキップします（' + hour + '時）');
+        return;
+      }
+    }
+
     if (
       config.geminiAutoNoteProbability !== undefined &&
       !isNaN(Number.parseFloat(config.geminiAutoNoteProbability))

@@ -19,6 +19,7 @@ type Config = {
   prompt?: string;
   autoNotePrompt?: string;
   autoNoteIntervalMinutes?: number;
+  autoNoteDisableNightPosting?: boolean;
   geminiAutoNoteProbability?: number;
   aichatRandomTalkEnabled?: boolean;
   aichatRandomTalkProbability?: number;
@@ -65,6 +66,8 @@ if (!config.mazeEnable) config.mazeEnable = false;
 if (!config.pollEnable) config.pollEnable = false;
 if (!config.defaultVisibility) config.defaultVisibility = 'public';
 if (config.postNotPublic === undefined) config.postNotPublic = false;
+if (config.autoNoteDisableNightPosting === undefined)
+  config.autoNoteDisableNightPosting = true;
 
 // 地震速報の設定デフォルト値
 if (!config.earthquakeWarning) config.earthquakeWarning = {};
