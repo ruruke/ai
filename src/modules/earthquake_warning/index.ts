@@ -83,6 +83,9 @@ export default class extends Module {
   private lastHeartbeat = 0;
   private activeEvents: Map<string, EarthquakeEvent> = new Map();
   private lastEarthquakeData: Map<string, WolfxEarthquakeData> = new Map();
+  // 接続後のデータ無視制御用
+  private ignoreInitialData = true;
+  private initialDataTimer: NodeJS.Timeout | null = null;
 
   @bindThis
   public install() {
@@ -133,10 +136,15 @@ export default class extends Module {
     this.log('WebSocket接続が確立されました');
     this.reconnectAttempts = 0;
 
-    // 接続後に現在の情報をリクエスト
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send('query_jmaeew');
-    }
+    // 接続直後のデータを無視するフラグを設定
+    this.ignoreInitialData = true;
+
+    // 一定時間後にフラグをリセット（10秒後）
+    this.initialDataTimer = setTimeout(() => {
+      this.ignoreInitialData = false;
+      this.initialDataTimer = null;
+      this.log('初期データの無視期間が終了しました');
+    }, 10000);
   }
 
   @bindThis
@@ -273,6 +281,12 @@ export default class extends Module {
 
   @bindThis
   private closeConnection(): void {
+    // 初期データ無視タイマーをクリア
+    if (this.initialDataTimer) {
+      clearTimeout(this.initialDataTimer);
+      this.initialDataTimer = null;
+    }
+
     if (this.ws) {
       try {
         this.ws.terminate();
@@ -289,6 +303,14 @@ export default class extends Module {
     // データの基本検証
     if (!this.validateEarthquakeData(data)) {
       this.log('無効な地震データを受信しました。処理をスキップします。');
+      return;
+    }
+
+    // 接続直後のデータは無視
+    if (this.ignoreInitialData) {
+      this.log(
+        `接続直後のデータのため無視します: ${data.Hypocenter} M${data.Magunitude}`
+      );
       return;
     }
 
