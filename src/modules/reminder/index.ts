@@ -192,7 +192,7 @@ export default class extends Module {
           text:
             acct(friend.doc.user) + ' ' + serifs.reminder.notify(friend.name),
         });
-      } catch (err) {
+      } catch (err: any) {
         // renote対象が消されていたらリマインダー解除
         if (err.statusCode === 400) {
           this.unsubscribeReply(

@@ -26,11 +26,11 @@ type Chart = {
 };
 
 export function renderChart(chart: Chart) {
-  GlobalFonts.registerFromPath(fonts.findFont(), 'CustomFont');
+  GlobalFonts.registerFromPath('./font.ttf', 'CustomFont');
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
-  ctx.antialias = 'default';
+  // ctx.antialias = 'default';
 
   ctx.fillStyle = colors.bg;
   ctx.beginPath();

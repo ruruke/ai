@@ -16,7 +16,7 @@ export function renderMaze(seed, maze: CellType[][]) {
 
   const canvas = createCanvas(imageSize, imageSize);
   const ctx = canvas.getContext('2d');
-  ctx.antialias = 'none';
+  // ctx.antialias = 'none';
 
   ctx.fillStyle = colors.bg1;
   ctx.beginPath();

@@ -107,18 +107,24 @@ export default class extends Module {
 
     if (
       config.aichatRandomTalkProbability != undefined &&
-      !Number.isNaN(Number.parseFloat(config.aichatRandomTalkProbability))
+      !Number.isNaN(
+        Number.parseFloat(String(config.aichatRandomTalkProbability))
+      )
     ) {
       this.randomTalkProbability = Number.parseFloat(
-        config.aichatRandomTalkProbability
+        String(config.aichatRandomTalkProbability)
       );
     }
     if (
       config.aichatRandomTalkIntervalMinutes != undefined &&
-      !Number.isNaN(Number.parseInt(config.aichatRandomTalkIntervalMinutes))
+      !Number.isNaN(
+        Number.parseInt(String(config.aichatRandomTalkIntervalMinutes))
+      )
     ) {
       this.randomTalkIntervalMinutes =
-        1000 * 60 * Number.parseInt(config.aichatRandomTalkIntervalMinutes);
+        1000 *
+        60 *
+        Number.parseInt(String(config.aichatRandomTalkIntervalMinutes));
     }
     this.log('aichatRandomTalkEnabled:' + config.aichatRandomTalkEnabled);
     this.log('randomTalkProbability:' + this.randomTalkProbability);
@@ -138,16 +144,16 @@ export default class extends Module {
     // ここで geminiPostMode が "auto" もしくは "both" の場合、自動ノート投稿を設定
     if (config.geminiPostMode === 'auto' || config.geminiPostMode === 'both') {
       const interval =
-        config.autoNoteIntervalMinutes &&
-        !isNaN(parseInt(config.autoNoteIntervalMinutes))
-          ? 1000 * 60 * parseInt(config.autoNoteIntervalMinutes)
+        config.autoNoteIntervalMinutes != undefined &&
+        !isNaN(parseInt(String(config.autoNoteIntervalMinutes)))
+          ? 1000 * 60 * parseInt(String(config.autoNoteIntervalMinutes))
           : AUTO_NOTE_DEFAULT_INTERVAL;
       setInterval(this.autoNote, interval);
       this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
       const probability =
         config.geminiAutoNoteProbability &&
-        !isNaN(parseFloat(config.geminiAutoNoteProbability))
-          ? parseFloat(config.geminiAutoNoteProbability)
+        !isNaN(parseFloat(String(config.geminiAutoNoteProbability)))
+          ? parseFloat(String(config.geminiAutoNoteProbability))
           : AUTO_NOTE_DEFAULT_PROBABILITY;
       this.log('Gemini自動ノート投稿確率: probability=' + probability);
     }
@@ -716,9 +722,11 @@ export default class extends Module {
 
     if (
       config.geminiAutoNoteProbability !== undefined &&
-      !isNaN(Number.parseFloat(config.geminiAutoNoteProbability))
+      !isNaN(Number.parseFloat(String(config.geminiAutoNoteProbability)))
     ) {
-      const probability = Number.parseFloat(config.geminiAutoNoteProbability);
+      const probability = Number.parseFloat(
+        String(config.geminiAutoNoteProbability)
+      );
       if (Math.random() >= probability) {
         this.log(
           `Gemini自動ノート投稿の確率によりスキップされました: probability=${probability}`
@@ -809,7 +817,11 @@ export default class extends Module {
     if (text && typeof text === 'object' && 'error' in text) {
       this.log('The result is invalid due to an HTTP error.');
       msg.reply(
-        serifs.aichat.error(exist.type, text.errorCode, text.errorMessage)
+        serifs.aichat.error(
+          exist.type,
+          (text as any).errorCode,
+          (text as any).errorMessage
+        )
       );
       return false;
     }
