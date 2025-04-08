@@ -1,4 +1,4 @@
-import { createCanvas, registerFont } from 'canvas';
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 
 const width = 1024 + 256;
 const height = 512 + 256;
@@ -26,7 +26,7 @@ type Chart = {
 };
 
 export function renderChart(chart: Chart) {
-  registerFont('./font.ttf', { family: 'CustomFont' });
+	GlobalFonts.registerFromPath(fonts.findFont(), 'CustomFont')
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
@@ -160,7 +160,7 @@ export function renderChart(chart: Chart) {
     }
   }
 
-  return canvas.toBuffer();
+  return canvas.toBuffer('image/png');
 }
 
 // https://stackoverflow.com/questions/326679/choosing-an-attractive-linear-scale-for-a-graphs-y-axis
