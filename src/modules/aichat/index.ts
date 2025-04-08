@@ -442,9 +442,22 @@ export default class extends Module {
       }
     } catch (err: unknown) {
       this.log('Error By Call Gemini');
+      let errorCode = null;
+      let errorMessage = null;
+
+      // HTTPErrorからエラーコードと内容を取得
+      if (err && typeof err === 'object' && 'response' in err) {
+        const httpError = err as any;
+        errorCode = httpError.response?.statusCode;
+        errorMessage = httpError.response?.statusMessage || httpError.message;
+      }
+
       if (err instanceof Error) {
         this.log(`${err.name}\n${err.message}\n${err.stack}`);
       }
+
+      // エラー情報を返す
+      return { error: true, errorCode, errorMessage };
     }
     return responseText;
   }
@@ -781,6 +794,15 @@ export default class extends Module {
 
     const base64Files: base64File[] = await this.note2base64File(msg.id);
     text = await this.genTextByGemini(aiChat, base64Files);
+
+    // エラー情報を処理
+    if (text && typeof text === 'object' && 'error' in text) {
+      this.log('The result is invalid due to an HTTP error.');
+      msg.reply(
+        serifs.aichat.error(exist.type, text.errorCode, text.errorMessage)
+      );
+      return false;
+    }
 
     if (text == null || text == '') {
       this.log(
