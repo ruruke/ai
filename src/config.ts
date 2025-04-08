@@ -18,11 +18,11 @@ type Config = {
   geminiPostMode?: string;
   prompt?: string;
   autoNotePrompt?: string;
-  autoNoteIntervalMinutes?: string;
-  geminiAutoNoteProbability?: string;
+  autoNoteIntervalMinutes?: number;
+  geminiAutoNoteProbability?: number;
   aichatRandomTalkEnabled?: boolean;
-  aichatRandomTalkProbability?: string;
-  aichatRandomTalkIntervalMinutes?: string;
+  aichatRandomTalkProbability?: number;
+  aichatRandomTalkIntervalMinutes?: number;
   aichatGroundingWithGoogleSearchAlwaysEnabled?: boolean;
   mecab?: string;
   mecabDic?: string;
@@ -34,13 +34,8 @@ type Config = {
   postNotPublic?: boolean;
   defaultVisibility?: string;
   earthquakeWarning?: {
-    requestTimeoutMs?: number;
-    maxErrorRetries?: number;
-    errorCooldownMs?: number;
     minIntensityThreshold?: number;
     minMagunitudeForWeak?: number;
-    maxReportHistory?: number;
-    checkIntervalMs?: number;
     websocketReconnectMaxAttempts?: number;
     websocketReconnectDelay?: number;
     maxReconnectDelay?: number;
@@ -73,20 +68,10 @@ if (config.postNotPublic === undefined) config.postNotPublic = false;
 
 // 地震速報の設定デフォルト値
 if (!config.earthquakeWarning) config.earthquakeWarning = {};
-if (config.earthquakeWarning.requestTimeoutMs === undefined)
-  config.earthquakeWarning.requestTimeoutMs = 10000;
-if (config.earthquakeWarning.maxErrorRetries === undefined)
-  config.earthquakeWarning.maxErrorRetries = 5;
-if (config.earthquakeWarning.errorCooldownMs === undefined)
-  config.earthquakeWarning.errorCooldownMs = 60000;
 if (config.earthquakeWarning.minIntensityThreshold === undefined)
   config.earthquakeWarning.minIntensityThreshold = 3;
 if (config.earthquakeWarning.minMagunitudeForWeak === undefined)
   config.earthquakeWarning.minMagunitudeForWeak = 4.0;
-if (config.earthquakeWarning.maxReportHistory === undefined)
-  config.earthquakeWarning.maxReportHistory = 100;
-if (config.earthquakeWarning.checkIntervalMs === undefined)
-  config.earthquakeWarning.checkIntervalMs = 1000;
 // WebSocket関連の設定
 if (config.earthquakeWarning.websocketReconnectMaxAttempts === undefined)
   config.earthquakeWarning.websocketReconnectMaxAttempts = 10;

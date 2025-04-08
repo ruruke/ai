@@ -74,8 +74,9 @@ export default class extends Module {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts =
-    config.earthquakeWarning?.maxReconnectAttempts ?? 10;
-  private reconnectDelay = config.earthquakeWarning?.reconnectDelay ?? 5000; // ms
+    config.earthquakeWarning?.websocketReconnectMaxAttempts ?? 10;
+  private reconnectDelay =
+    config.earthquakeWarning?.websocketReconnectDelay ?? 5000; // ms
   private maxReconnectDelay =
     config.earthquakeWarning?.maxReconnectDelay ?? 300000; // 最大5分
   private heartbeatInterval: NodeJS.Timeout | null = null;
@@ -151,7 +152,9 @@ export default class extends Module {
         message = JSON.parse(data.toString());
       } catch (parseError) {
         this.log(
-          `JSON解析エラー: ${parseError}、受信データ: ${data.toString().substring(0, 100)}`
+          `JSON解析エラー: ${parseError}、受信データ: ${data
+            .toString()
+            .substring(0, 100)}`
         );
         return;
       }
@@ -214,7 +217,9 @@ export default class extends Module {
     delay = Math.min(delay, this.maxReconnectDelay);
 
     this.log(
-      `${Math.round(delay)}ms後に再接続を試みます (試行: ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+      `${Math.round(delay)}ms後に再接続を試みます (試行: ${
+        this.reconnectAttempts
+      }/${this.maxReconnectAttempts})`
     );
 
     setTimeout(() => {
