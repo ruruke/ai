@@ -160,6 +160,11 @@ export default class extends Module {
   }
 
   @bindThis
+  private isYoutubeUrl(url: string): boolean {
+    return url.includes('www.youtube.com') || url.includes('youtu.be');
+  }
+
+  @bindThis
   private async genTextByGemini(aiChat: AiChat, files: base64File[]) {
     this.log('Generate Text By Gemini...');
     let parts: GeminiParts = [];
@@ -189,6 +194,10 @@ export default class extends Module {
     if (aiChat.grounding) {
       systemInstructionText += '返答のルール2:Google search with grounding.';
     }
+
+    // YouTubeリンクの検出とpartsへの追加
+    let youtubeURLs: string[] = [];
+
     // URLから情報を取得
     if (aiChat.question !== undefined) {
       const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
@@ -196,6 +205,14 @@ export default class extends Module {
       if (urlarray.length > 0) {
         for (const url of urlarray) {
           this.log('URL:' + url[0]);
+
+          // YouTubeのURLの場合は特別処理
+          if (this.isYoutubeUrl(url[0])) {
+            this.log('YouTube URL detected: ' + url[0]);
+            youtubeURLs.push(url[0]);
+            continue;
+          }
+
           let result: unknown = null;
           try {
             result = await urlToJson(url[0]);
@@ -243,6 +260,18 @@ export default class extends Module {
 
     // ファイルが存在する場合、ファイルを添付して問い合わせ
     parts = [{ text: aiChat.question }];
+
+    // YouTubeのURLをfileDataとして追加
+    for (const youtubeURL of youtubeURLs) {
+      parts.push({
+        fileData: {
+          mimeType: 'video/mp4',
+          fileUri: youtubeURL,
+        },
+      });
+    }
+
+    // 画像ファイルを追加
     if (files.length >= 1) {
       for (const file of files) {
         parts.push({
