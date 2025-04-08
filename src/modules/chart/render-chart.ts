@@ -26,7 +26,7 @@ type Chart = {
 };
 
 export function renderChart(chart: Chart) {
-	GlobalFonts.registerFromPath(fonts.findFont(), 'CustomFont')
+  GlobalFonts.registerFromPath(fonts.findFont(), 'CustomFont');
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
