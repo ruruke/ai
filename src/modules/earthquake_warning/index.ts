@@ -73,8 +73,11 @@ export default class extends Module {
   // private readonly WEBSOCKET_URL = "ws://localhost:8765/"; // ローカルでのテスト用
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-  private reconnectDelay = 5000; // ms
+  private maxReconnectAttempts =
+    config.earthquakeWarning?.maxReconnectAttempts ?? 10;
+  private reconnectDelay = config.earthquakeWarning?.reconnectDelay ?? 5000; // ms
+  private maxReconnectDelay =
+    config.earthquakeWarning?.maxReconnectDelay ?? 300000; // 最大5分
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private lastHeartbeat = 0;
   private activeEvents: Map<string, EarthquakeEvent> = new Map();
@@ -93,10 +96,11 @@ export default class extends Module {
       this.log('WebSocketに接続しています...');
       this.ws = new WebSocket(this.WEBSOCKET_URL);
 
-      this.ws.on('open', this.onWebSocketOpen);
-      this.ws.on('message', this.onWebSocketMessage);
-      this.ws.on('error', this.onWebSocketError);
-      this.ws.on('close', this.onWebSocketClose);
+      // 安全なイベントリスナーを設定
+      this.ws.on('open', this.safeEventHandler(this.onWebSocketOpen));
+      this.ws.on('message', this.safeEventHandler(this.onWebSocketMessage));
+      this.ws.on('error', this.safeEventHandler(this.onWebSocketError));
+      this.ws.on('close', this.safeEventHandler(this.onWebSocketClose));
 
       // ハートビートチェック開始
       this.startHeartbeatCheck();
@@ -104,6 +108,23 @@ export default class extends Module {
       this.log(`WebSocket接続エラー: ${error}`);
       this.scheduleReconnect();
     }
+  }
+
+  @bindThis
+  private safeEventHandler(handler: Function): (...args: any[]) => void {
+    return (...args: any[]) => {
+      try {
+        handler.apply(this, args);
+      } catch (error) {
+        this.log(`イベントハンドラでエラーが発生しました: ${error}`);
+        // 重大なエラーの場合は再接続を試みる
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.log('接続を再確立します...');
+          this.closeConnection();
+          this.scheduleReconnect();
+        }
+      }
+    };
   }
 
   @bindThis
@@ -120,7 +141,20 @@ export default class extends Module {
   @bindThis
   private onWebSocketMessage(data: WebSocket.Data): void {
     try {
-      const message = JSON.parse(data.toString());
+      if (!data) {
+        this.log('空のメッセージを受信しました');
+        return;
+      }
+
+      let message;
+      try {
+        message = JSON.parse(data.toString());
+      } catch (parseError) {
+        this.log(
+          `JSON解析エラー: ${parseError}、受信データ: ${data.toString().substring(0, 100)}`
+        );
+        return;
+      }
 
       // ハートビートメッセージの処理
       if (message.type === 'heartbeat') {
@@ -139,7 +173,19 @@ export default class extends Module {
 
   @bindThis
   private onWebSocketError(error: Error): void {
-    this.log(`WebSocketエラー: ${error.message}`);
+    // エラータイプに基づいた特定のハンドリング
+    if (error.message.includes('ECONNREFUSED')) {
+      this.log(`接続が拒否されました: ${error.message}`);
+    } else if (error.message.includes('ETIMEDOUT')) {
+      this.log(`接続がタイムアウトしました: ${error.message}`);
+    } else if (error.message.includes('ENOTFOUND')) {
+      this.log(`ホストが見つかりません: ${error.message}`);
+    } else {
+      this.log(`WebSocketエラー: ${error.message}`);
+    }
+
+    // エラー後に再接続を試みる
+    this.scheduleReconnect();
   }
 
   @bindThis
@@ -157,11 +203,18 @@ export default class extends Module {
     }
 
     this.reconnectAttempts++;
-    const delay =
+
+    // 指数バックオフ+ジッター方式で再接続遅延を計算
+    const baseDelay =
       this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1);
+    const jitter = 0.1 * baseDelay * (Math.random() - 0.5); // ±5%のジッター
+    let delay = baseDelay + jitter;
+
+    // 最大遅延時間を設定
+    delay = Math.min(delay, this.maxReconnectDelay);
 
     this.log(
-      `${delay}ms後に再接続を試みます (試行: ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+      `${Math.round(delay)}ms後に再接続を試みます (試行: ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
     );
 
     setTimeout(() => {
@@ -171,6 +224,18 @@ export default class extends Module {
 
   @bindThis
   private handleHeartbeat(data: HeartbeatData): void {
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      !('type' in data) ||
+      data.type !== 'heartbeat'
+    ) {
+      this.log(
+        `無効なハートビートデータを受信しました: ${JSON.stringify(data)}`
+      );
+      return;
+    }
+
     this.lastHeartbeat = Date.now();
 
     // ハートビートに応答
@@ -216,6 +281,12 @@ export default class extends Module {
 
   @bindThis
   private handleEarthquakeData(data: WolfxEarthquakeData): void {
+    // データの基本検証
+    if (!this.validateEarthquakeData(data)) {
+      this.log('無効な地震データを受信しました。処理をスキップします。');
+      return;
+    }
+
     // トレーニングデータは無視
     if (data.isTraining) {
       this.log('トレーニングデータを受信しました（処理をスキップ）');
@@ -246,6 +317,54 @@ export default class extends Module {
       // 続報
       this.processUpdateReport(data, existingEvent);
     }
+  }
+
+  @bindThis
+  private validateEarthquakeData(data: any): data is WolfxEarthquakeData {
+    if (!data || typeof data !== 'object') return false;
+
+    // 必須フィールドの存在チェック
+    const requiredFields = [
+      'type',
+      'EventID',
+      'AnnouncedTime',
+      'Hypocenter',
+      'Latitude',
+      'Longitude',
+      'Magunitude',
+      'Depth',
+      'MaxIntensity',
+    ];
+
+    for (const field of requiredFields) {
+      if (!(field in data)) {
+        this.log(`地震データに必須フィールド ${field} がありません`);
+        return false;
+      }
+    }
+
+    // データ型の検証
+    if (
+      typeof data.EventID !== 'string' ||
+      typeof data.Hypocenter !== 'string' ||
+      typeof data.MaxIntensity !== 'string'
+    ) {
+      this.log('地震データの型が正しくありません');
+      return false;
+    }
+
+    // 数値フィールドの検証
+    if (
+      isNaN(Number(data.Latitude)) ||
+      isNaN(Number(data.Longitude)) ||
+      isNaN(Number(data.Magunitude)) ||
+      isNaN(Number(data.Depth))
+    ) {
+      this.log('地震データの数値フィールドが無効です');
+      return false;
+    }
+
+    return true;
   }
 
   @bindThis
@@ -555,6 +674,12 @@ export default class extends Module {
   // ユーティリティ関数
   @bindThis
   private convertIntensityToNumber(intensity: string): number {
+    // 入力検証
+    if (!intensity || typeof intensity !== 'string') {
+      this.log(`無効な震度文字列: ${intensity}`);
+      return 0;
+    }
+
     // 震度文字列を数値に変換 (互換性を保持しつつ処理)
     if (intensity.includes('7')) return 7;
     if (intensity.includes('6+') || intensity.includes('6強')) return 6;

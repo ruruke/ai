@@ -43,7 +43,9 @@ type Config = {
     checkIntervalMs?: number;
     websocketReconnectMaxAttempts?: number;
     websocketReconnectDelay?: number;
+    maxReconnectDelay?: number;
     heartbeatTimeoutMs?: number;
+    heartbeatIntervalMs?: number;
   };
   kiatsu?: {
     locationCode?: string;
@@ -90,8 +92,12 @@ if (config.earthquakeWarning.websocketReconnectMaxAttempts === undefined)
   config.earthquakeWarning.websocketReconnectMaxAttempts = 10;
 if (config.earthquakeWarning.websocketReconnectDelay === undefined)
   config.earthquakeWarning.websocketReconnectDelay = 5000;
+if (config.earthquakeWarning.maxReconnectDelay === undefined)
+  config.earthquakeWarning.maxReconnectDelay = 300000;
 if (config.earthquakeWarning.heartbeatTimeoutMs === undefined)
   config.earthquakeWarning.heartbeatTimeoutMs = 120000;
+if (config.earthquakeWarning.heartbeatIntervalMs === undefined)
+  config.earthquakeWarning.heartbeatIntervalMs = 60000;
 
 // 気圧モジュールの設定デフォルト値
 if (!config.kiatsu) config.kiatsu = {};

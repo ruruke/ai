@@ -44,7 +44,9 @@
 		"minMagunitudeForWeak": 4.0,
 		"websocketReconnectMaxAttempts": 10,
 		"websocketReconnectDelay": 5000,
-		"heartbeatTimeoutMs": 120000
+		"maxReconnectDelay": 300000,
+		"heartbeatTimeoutMs": 120000,
+		"heartbeatIntervalMs": 60000
 	},
 	"kiatsu": {
 		"locationCode": "13102",
