@@ -369,7 +369,13 @@ export default class extends Module {
                     i
                   ].web.hasOwnProperty('title')
                 ) {
-                  groundingMetadata += `参考(${i + 1}): [${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.title}](${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.uri})\n`;
+                  groundingMetadata += `参考(${i + 1}): [${
+                    res_data.candidates[0].groundingMetadata.groundingChunks[i]
+                      .web.title
+                  }](${
+                    res_data.candidates[0].groundingMetadata.groundingChunks[i]
+                      .web.uri
+                  })\n`;
                 }
               }
             }
