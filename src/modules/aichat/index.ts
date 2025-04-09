@@ -63,6 +63,8 @@ type AiChatHist = {
   fromMention: boolean;
   grounding?: boolean;
   youtubeUrls?: string[]; // YouTubeのURLを保存するための配列を追加
+  isChat?: boolean; // チャットメッセージかどうかを示すフラグを追加
+  chatUserId?: string; // チャットの場合、ユーザーIDを保存
 };
 
 type UrlPreview = {
@@ -301,11 +303,16 @@ export default class extends Module {
     // 保存されたYouTubeのURLを会話履歴から取得
     if (aiChat.history && aiChat.history.length > 0) {
       // historyの最初のユーザーメッセージをチェック
-      const firstUserMessage = aiChat.history.find(entry => entry.role === 'user');
+      const firstUserMessage = aiChat.history.find(
+        (entry) => entry.role === 'user'
+      );
       if (firstUserMessage) {
-        const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+        const urlexp = RegExp(
+          "(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)",
+          'g'
+        );
         const urlarray = [...firstUserMessage.content.matchAll(urlexp)];
-        
+
         for (const url of urlarray) {
           if (this.isYoutubeUrl(url[0])) {
             const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
@@ -492,7 +499,12 @@ export default class extends Module {
   }
 
   @bindThis
-  private async note2base64File(notesId: string) {
+  private async note2base64File(notesId: string, isChat: boolean) {
+    // チャットメッセージの場合は画像取得をスキップ
+    if (isChat) {
+      return [];
+    }
+
     const noteData = await this.ai.api('notes/show', { noteId: notesId });
     let files: base64File[] = [];
     if (noteData !== null && noteData.hasOwnProperty('files')) {
@@ -540,7 +552,6 @@ export default class extends Module {
       const relation = await this.ai?.api('users/relation', {
         userId: msg.userId,
       });
-      // this.log('Relation data:' + JSON.stringify(relation));
 
       if (relation[0]?.isFollowing !== true) {
         this.log('The user is not following me:' + msg.userId);
@@ -549,15 +560,26 @@ export default class extends Module {
       }
     }
 
-    const conversationData = await this.ai.api('notes/conversation', {
-      noteId: msg.id,
-    });
-
     let exist: AiChatHist | null = null;
-    if (conversationData != undefined) {
-      for (const message of conversationData) {
-        exist = this.aichatHist.findOne({ postId: message.id });
-        if (exist != null) return false;
+
+    // チャットメッセージの場合、会話APIは使わず直接処理する
+    if (msg.isChat) {
+      exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: msg.userId,
+      });
+
+      if (exist != null) return false;
+    } else {
+      const conversationData = await this.ai.api('notes/conversation', {
+        noteId: msg.id,
+      });
+
+      if (conversationData != undefined) {
+        for (const message of conversationData) {
+          exist = this.aichatHist.findOne({ postId: message.id });
+          if (exist != null) return false;
+        }
       }
     }
 
@@ -567,7 +589,10 @@ export default class extends Module {
       createdAt: Date.now(),
       type: type,
       fromMention: true,
+      isChat: msg.isChat,
+      chatUserId: msg.isChat ? msg.userId : undefined,
     };
+
     if (msg.quoteId) {
       const quotedNote = await this.ai.api('notes/show', {
         noteId: msg.quoteId,
@@ -594,14 +619,55 @@ export default class extends Module {
     this.log('contextHook...');
     if (msg.text == null) return false;
 
-    // msg.idをもとにnotes/conversationを呼び出し、該当のidかチェック
-    const conversationData = await this.ai.api('notes/conversation', {
-      noteId: msg.id,
-    });
+    // チャットモードでaichatを終了するコマンドを追加
+    if (
+      msg.isChat &&
+      (msg.includes(['aichat 終了']) ||
+        msg.includes(['aichat 終わり']) ||
+        msg.includes(['aichat やめる']) ||
+        msg.includes(['aichat 止めて']))
+    ) {
+      const exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: msg.userId,
+      });
 
-    // 結果がnullやサイズ0の場合は終了
-    if (conversationData == null || conversationData.length == 0) {
-      this.log('conversationData is nothing.');
+      if (exist != null) {
+        this.aichatHist.remove(exist);
+        this.unsubscribeReply(key);
+        msg.reply(
+          '藍チャットを終了しました。また何かあればお声がけくださいね！'
+        );
+        return true;
+      }
+    }
+
+    let exist: AiChatHist | null = null;
+
+    // チャットメッセージの場合
+    if (msg.isChat) {
+      exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: msg.userId,
+      });
+    } else {
+      const conversationData = await this.ai.api('notes/conversation', {
+        noteId: msg.id,
+      });
+
+      if (conversationData == null || conversationData.length == 0) {
+        this.log('conversationData is nothing.');
+        return false;
+      }
+
+      for (const message of conversationData) {
+        exist = this.aichatHist.findOne({ postId: message.id });
+        if (exist != null) break;
+      }
+    }
+
+    if (exist == null) {
+      this.log('conversation context is not found.');
       return false;
     }
 
@@ -611,16 +677,6 @@ export default class extends Module {
     if (relation[0]?.isFollowing !== true) {
       this.log('The user is not following me: ' + msg.userId);
       msg.reply('あなたはaichatを実行する権限がありません。');
-      return false;
-    }
-
-    let exist: AiChatHist | null = null;
-    for (const message of conversationData) {
-      exist = this.aichatHist.findOne({ postId: message.id });
-      if (exist != null) break;
-    }
-    if (exist == null) {
-      this.log('conversationData is not found.');
       return false;
     }
 
@@ -659,16 +715,13 @@ export default class extends Module {
     const choseNote =
       interestedNotes[Math.floor(Math.random() * interestedNotes.length)];
 
-    // aichatHistに該当のポストが見つかった場合は会話中のためaichatRandomTalkでは対応しない
     let exist: AiChatHist | null = null;
 
-    // 選択されたノート自体が会話中のidかチェック
     exist = this.aichatHist.findOne({
       postId: choseNote.id,
     });
     if (exist != null) return false;
 
-    // msg.idをもとにnotes/childrenを呼び出し、会話中のidかチェック
     const childrenData = await this.ai.api('notes/children', {
       noteId: choseNote.id,
     });
@@ -681,7 +734,6 @@ export default class extends Module {
       }
     }
 
-    // msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
     const conversationData = await this.ai.api('notes/conversation', {
       noteId: choseNote.id,
     });
@@ -699,8 +751,6 @@ export default class extends Module {
       return false;
     }
 
-    // const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
-    // if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
     if (choseNote.user.isBot) return false;
 
     const relation = await this.ai.api('users/relation', {
@@ -733,7 +783,6 @@ export default class extends Module {
 
   @bindThis
   private async autoNote() {
-    // 現在時刻をチェックして深夜かどうか判断する（22時〜6時を深夜とする）
     if (config.autoNoteDisableNightPosting) {
       const now = new Date();
       const hour = now.getHours();
@@ -769,7 +818,7 @@ export default class extends Module {
       key: config.geminiApiKey,
       fromMention: false,
     };
-    const base64Files: base64File[] = []; // 自動ノートの場合はファイルは添付しない
+    const base64Files: base64File[] = [];
     const text = await this.genTextByGemini(aiChat, base64Files);
     if (text) {
       this.ai.post({ text: text + ' #aichat' });
@@ -786,11 +835,9 @@ export default class extends Module {
       prompt = config.prompt;
     }
 
-    // groudingサポート
     if (msg.includes([GROUNDING_TARGET])) {
       exist.grounding = true;
     }
-    // 設定で、デフォルトgroundingがONの場合、メンションから来たときは強制的にgroundingをONとする(ランダムトークの場合は勝手にGoogle検索するのちょっと気が引けるため...)
     if (
       exist.fromMention &&
       config.aichatGroundingWithGoogleSearchAlwaysEnabled
@@ -807,10 +854,8 @@ export default class extends Module {
       .replace(GROUNDING_TARGET, '')
       .trim();
 
-    // YouTubeリンクの検出（既存の会話にYouTubeリンクがある場合はそれを引き継ぐ）
     const youtubeUrls: string[] = exist.youtubeUrls || [];
-    
-    // 新しい質問からYouTubeリンクを検出
+
     const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
     const urlarray = [...question.matchAll(urlexp)];
     if (urlarray.length > 0) {
@@ -834,7 +879,6 @@ export default class extends Module {
       friendName = msg.user.username;
     }
 
-    // Ensure Gemini API key is set
     if (!config.geminiApiKey) {
       msg.reply(serifs.aichat.nothing(exist.type));
       return false;
@@ -848,12 +892,15 @@ export default class extends Module {
       history: exist.history,
       friendName: friendName,
       fromMention: exist.fromMention,
+      grounding: exist.grounding,
     };
 
-    const base64Files: base64File[] = await this.note2base64File(msg.id);
+    const base64Files: base64File[] = await this.note2base64File(
+      msg.id,
+      msg.isChat
+    );
     text = await this.genTextByGemini(aiChat, base64Files);
 
-    // エラー情報を処理
     if (text && typeof text === 'object' && 'error' in text) {
       this.log('The result is invalid due to an HTTP error.');
       msg.reply(
@@ -883,7 +930,8 @@ export default class extends Module {
       if (exist.history.length > 10) {
         exist.history.shift();
       }
-      this.aichatHist.insertOne({
+
+      const newRecord: AiChatHist = {
         postId: reply.id,
         createdAt: Date.now(),
         type: exist.type,
@@ -892,20 +940,52 @@ export default class extends Module {
         grounding: exist.grounding,
         fromMention: exist.fromMention,
         originalNoteId: exist.postId,
-        youtubeUrls: youtubeUrls.length > 0 ? youtubeUrls : undefined, // YouTubeのURLを保存
+        youtubeUrls: youtubeUrls.length > 0 ? youtubeUrls : undefined,
+        isChat: msg.isChat,
+        chatUserId: msg.isChat ? msg.userId : undefined,
+      };
+
+      this.aichatHist.insertOne(newRecord);
+
+      this.subscribeReply(
+        reply.id,
+        msg.isChat,
+        msg.isChat ? msg.userId : reply.id
+      );
+      this.setTimeoutWithPersistence(TIMEOUT_TIME, {
+        id: reply.id,
+        isChat: msg.isChat,
+        userId: msg.userId,
       });
 
-      this.subscribeReply(reply.id, false, reply.id);
-      this.setTimeoutWithPersistence(TIMEOUT_TIME, { id: reply.id });
+      // チャットモードで、かつ最初のメッセージ（履歴が2つしかない）の場合に終了方法を教える
+      if (msg.isChat && exist.history && exist.history.length <= 2) {
+        setTimeout(() => {
+          this.ai.sendMessage(msg.userId, {
+            text: '💡 チャット中に「aichat 終了」「aichat 終わり」「aichat やめる」「aichat 止めて」のいずれかと送信すると会話を終了できます。',
+          });
+        }, 1000); // 少し間を空けて送信
+      }
     });
     return true;
   }
 
   @bindThis
-  private async timeoutCallback({ id }) {
+  private async timeoutCallback(data) {
     this.log('timeoutCallback...');
-    const exist = this.aichatHist.findOne({ postId: id });
-    this.unsubscribeReply(id);
+    let exist: AiChatHist | null = null;
+
+    if (data.isChat) {
+      exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: data.userId,
+      });
+      this.unsubscribeReply(data.userId);
+    } else {
+      exist = this.aichatHist.findOne({ postId: data.id });
+      this.unsubscribeReply(data.id);
+    }
+
     if (exist != null) {
       this.aichatHist.remove(exist);
     }
