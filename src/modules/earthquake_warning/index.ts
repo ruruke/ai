@@ -417,13 +417,18 @@ export default class extends Module {
 
   @bindThis
   private async processNewEarthquake(data: WolfxEarthquakeData): Promise<void> {
-    // 初回メッセージ生成
+    // 初回メッセージ生成（isFinalの状態を渡す）
     const message = this.generateEarthquakeMessage(data, true);
+
+    // 最初から最終報の場合はメッセージに明示
+    const finalMessage = data.isFinal 
+      ? `【最終報】\n${message}`
+      : message;
 
     try {
       // 投稿を行い、結果を取得
       const post = await this.ai.post({
-        text: message,
+        text: finalMessage,
       });
 
       // イベント情報を保存
@@ -436,9 +441,20 @@ export default class extends Module {
         isCancel: data.isCancel,
       });
 
-      this.log(
-        `新しい地震速報を送信しました: ${data.Hypocenter} M${data.Magunitude}`
-      );
+      if (data.isFinal) {
+        this.log(
+          `新しい地震速報（最終報）を送信しました: ${data.Hypocenter} M${data.Magunitude}`
+        );
+        
+        // 最初から最終報なので一定時間後にイベント情報をクリーンアップ
+        setTimeout(() => {
+          this.activeEvents.delete(data.EventID);
+        }, 3600000); // 1時間後
+      } else {
+        this.log(
+          `新しい地震速報を送信しました: ${data.Hypocenter} M${data.Magunitude}`
+        );
+      }
     } catch (error) {
       this.log(`メッセージ送信エラー: ${error}`);
     }
@@ -514,6 +530,12 @@ export default class extends Module {
     data: WolfxEarthquakeData,
     existingEvent: EarthquakeEvent
   ): Promise<void> {
+    // 既に最終報として処理済みの場合はスキップ
+    if (existingEvent.isFinal) {
+      this.log(`すでに最終報として処理済みのイベントです: ${data.EventID}`);
+      return;
+    }
+
     const message = `【最終報】\n${this.generateEarthquakeMessage(
       data,
       false
