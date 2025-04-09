@@ -421,9 +421,7 @@ export default class extends Module {
     const message = this.generateEarthquakeMessage(data, true);
 
     // 最初から最終報の場合はメッセージに明示
-    const finalMessage = data.isFinal 
-      ? `【最終報】\n${message}`
-      : message;
+    const finalMessage = data.isFinal ? `【最終報】\n${message}` : message;
 
     try {
       // 投稿を行い、結果を取得
@@ -445,7 +443,7 @@ export default class extends Module {
         this.log(
           `新しい地震速報（最終報）を送信しました: ${data.Hypocenter} M${data.Magunitude}`
         );
-        
+
         // 最初から最終報なので一定時間後にイベント情報をクリーンアップ
         setTimeout(() => {
           this.activeEvents.delete(data.EventID);
