@@ -19,6 +19,7 @@ Misskey用の日本語Botです。
 まず適当なディレクトリに `git clone` します。
 次にそのディレクトリに `config.json` を作成します。中身は次のexampleを参照してください。
 （MeCabの設定、memoryDirについてはご自身の環境に合わせてください）
+
 https://github.com/lqvp/ai/blob/master/example.config.json
 
 `pnpm install` して `pnpm build` して `pnpm start` すれば起動できます
@@ -27,6 +28,7 @@ https://github.com/lqvp/ai/blob/master/example.config.json
 まず適当なディレクトリに `git clone` します。
 次にそのディレクトリに `config.json` を作成します。中身は次のexampleを参照してください。
 （MeCabの設定、memoryDirについては触らないでください）
+
 https://github.com/lqvp/ai/blob/master/example.config.json
 
 `docker-compose build` して `docker-compose up` すれば起動できます。
