@@ -4,8 +4,9 @@ services:
     # build:
     #   context: .
     #   args:
-    #     - enable_mecab=1
-    image: ghcr.io/lqvp/ai:latest
+    #     - enable_mecab
+    1
+    image: ghcr.io/ruruke/ai:latest
     platform: linux/amd64
     environment:
       - TZ=Asia/Tokyo
