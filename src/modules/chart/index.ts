@@ -27,8 +27,8 @@ export default class extends Module {
     if (now.getHours() !== 23) return;
     const date = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
     const data = this.getData();
-    if (data.lastPosted == date) return;
-    data.lastPosted = date;
+    if ((data as any).lastPosted == date) return;
+    (data as any).lastPosted = date;
     this.setData(data);
 
     this.log('Time to chart');
@@ -58,13 +58,13 @@ export default class extends Module {
         title: `@${params.user.username}さんの投稿数`,
         datasets: [
           {
-            data: data.diffs.normal,
+            data: (data as any).diffs.normal,
           },
           {
-            data: data.diffs.reply,
+            data: (data as any).diffs.reply,
           },
           {
-            data: data.diffs.renote,
+            data: (data as any).diffs.renote,
           },
         ],
       };
@@ -79,10 +79,10 @@ export default class extends Module {
         title: `@${params.user.username}さんのフォロワー数`,
         datasets: [
           {
-            data: data.local.followers.total,
+            data: (data as any).local.followers.total,
           },
           {
-            data: data.remote.followers.total,
+            data: (data as any).remote.followers.total,
           },
         ],
       };
@@ -95,13 +95,13 @@ export default class extends Module {
       chart = {
         datasets: [
           {
-            data: data.local.diffs.normal,
+            data: (data as any).local.diffs.normal,
           },
           {
-            data: data.local.diffs.reply,
+            data: (data as any).local.diffs.reply,
           },
           {
-            data: data.local.diffs.renote,
+            data: (data as any).local.diffs.renote,
           },
         ],
       };

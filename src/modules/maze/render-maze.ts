@@ -1,5 +1,5 @@
 import gen from 'random-seed';
-import { createCanvas } from 'canvas';
+import { createCanvas } from '@napi-rs/canvas';
 
 import { CellType } from './maze.js';
 import { themes } from './themes.js';
@@ -16,7 +16,7 @@ export function renderMaze(seed, maze: CellType[][]) {
 
   const canvas = createCanvas(imageSize, imageSize);
   const ctx = canvas.getContext('2d');
-  ctx.antialias = 'none';
+  // ctx.antialias = 'none';
 
   ctx.fillStyle = colors.bg1;
   ctx.beginPath();
@@ -405,5 +405,5 @@ export function renderMaze(seed, maze: CellType[][]) {
     }
   }
 
-  return canvas.toBuffer();
+  return canvas.toBuffer('image/png');
 }

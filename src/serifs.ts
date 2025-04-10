@@ -430,8 +430,10 @@ const defaultSerifs = {
 
   aichat: {
     nothing: (type) => `あぅ... ${type}のAPIキーが登録されてないみたいです`,
-    error: (type) =>
-      `うぇ...${type}でエラーが発生しちゃったみたいです。gemini-flashだと動くかも？`,
+    error: (type, errorCode = null, errorMessage = null) =>
+      errorCode
+        ? `うぇ...${type}でエラーが発生しちゃったみたいです。\nエラーコード: ${errorCode}\nエラーメッセージ: ${errorMessage}`
+        : `うぇ...${type}でエラーが発生しちゃったみたいです。`,
     post: (text) => `${text} #aichat`,
   },
 

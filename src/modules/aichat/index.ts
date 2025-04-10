@@ -62,6 +62,9 @@ type AiChatHist = {
   originalNoteId?: string;
   fromMention: boolean;
   grounding?: boolean;
+  youtubeUrls?: string[]; // YouTubeのURLを保存するための配列を追加
+  isChat?: boolean; // チャットメッセージかどうかを示すフラグを追加
+  chatUserId?: string; // チャットの場合、ユーザーIDを保存
 };
 
 type UrlPreview = {
@@ -107,18 +110,24 @@ export default class extends Module {
 
     if (
       config.aichatRandomTalkProbability != undefined &&
-      !Number.isNaN(Number.parseFloat(config.aichatRandomTalkProbability))
+      !Number.isNaN(
+        Number.parseFloat(String(config.aichatRandomTalkProbability))
+      )
     ) {
       this.randomTalkProbability = Number.parseFloat(
-        config.aichatRandomTalkProbability
+        String(config.aichatRandomTalkProbability)
       );
     }
     if (
       config.aichatRandomTalkIntervalMinutes != undefined &&
-      !Number.isNaN(Number.parseInt(config.aichatRandomTalkIntervalMinutes))
+      !Number.isNaN(
+        Number.parseInt(String(config.aichatRandomTalkIntervalMinutes))
+      )
     ) {
       this.randomTalkIntervalMinutes =
-        1000 * 60 * Number.parseInt(config.aichatRandomTalkIntervalMinutes);
+        1000 *
+        60 *
+        Number.parseInt(String(config.aichatRandomTalkIntervalMinutes));
     }
     this.log('aichatRandomTalkEnabled:' + config.aichatRandomTalkEnabled);
     this.log('randomTalkProbability:' + this.randomTalkProbability);
@@ -138,16 +147,16 @@ export default class extends Module {
     // ここで geminiPostMode が "auto" もしくは "both" の場合、自動ノート投稿を設定
     if (config.geminiPostMode === 'auto' || config.geminiPostMode === 'both') {
       const interval =
-        config.autoNoteIntervalMinutes &&
-        !isNaN(parseInt(config.autoNoteIntervalMinutes))
-          ? 1000 * 60 * parseInt(config.autoNoteIntervalMinutes)
+        config.autoNoteIntervalMinutes != undefined &&
+        !isNaN(parseInt(String(config.autoNoteIntervalMinutes)))
+          ? 1000 * 60 * parseInt(String(config.autoNoteIntervalMinutes))
           : AUTO_NOTE_DEFAULT_INTERVAL;
       setInterval(this.autoNote, interval);
       this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
       const probability =
         config.geminiAutoNoteProbability &&
-        !isNaN(parseFloat(config.geminiAutoNoteProbability))
-          ? parseFloat(config.geminiAutoNoteProbability)
+        !isNaN(parseFloat(String(config.geminiAutoNoteProbability)))
+          ? parseFloat(String(config.geminiAutoNoteProbability))
           : AUTO_NOTE_DEFAULT_PROBABILITY;
       this.log('Gemini自動ノート投稿確率: probability=' + probability);
     }
@@ -157,6 +166,45 @@ export default class extends Module {
       contextHook: this.contextHook,
       timeoutCallback: this.timeoutCallback,
     };
+  }
+
+  @bindThis
+  private isYoutubeUrl(url: string): boolean {
+    return (
+      url.includes('www.youtube.com') ||
+      url.includes('m.youtube.com') ||
+      url.includes('youtu.be')
+    );
+  }
+
+  @bindThis
+  private normalizeYoutubeUrl(url: string): string {
+    try {
+      // URLオブジェクトを使用してパラメータを正確に解析
+      const urlObj = new URL(url);
+      let videoId = '';
+
+      // youtu.beドメインの場合
+      if (urlObj.hostname.includes('youtu.be')) {
+        // パスから直接ビデオIDを取得
+        videoId = urlObj.pathname.split('/')[1];
+      }
+      // youtube.comドメインの場合
+      else if (urlObj.hostname.includes('youtube.com')) {
+        // URLSearchParamsを使用してvパラメータを取得
+        videoId = urlObj.searchParams.get('v') || '';
+      }
+
+      // ビデオIDが見つかった場合は標準形式のURLを返す
+      if (videoId) {
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+    } catch (error) {
+      this.log(`YouTube URL解析エラー: ${error}`);
+    }
+
+    // 解析に失敗した場合は元のURLを返す
+    return url;
   }
 
   @bindThis
@@ -189,13 +237,28 @@ export default class extends Module {
     if (aiChat.grounding) {
       systemInstructionText += '返答のルール2:Google search with grounding.';
     }
+
     // URLから情報を取得
+    let youtubeURLs: string[] = [];
+    let hasYoutubeUrl = false;
+
     if (aiChat.question !== undefined) {
       const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
       const urlarray = [...aiChat.question.matchAll(urlexp)];
       if (urlarray.length > 0) {
         for (const url of urlarray) {
           this.log('URL:' + url[0]);
+
+          // YouTubeのURLの場合は特別処理
+          if (this.isYoutubeUrl(url[0])) {
+            this.log('YouTube URL detected: ' + url[0]);
+            const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
+            this.log('Normalized YouTube URL: ' + normalizedUrl);
+            youtubeURLs.push(normalizedUrl);
+            hasYoutubeUrl = true;
+            continue;
+          }
+
           let result: unknown = null;
           try {
             result = await urlToJson(url[0]);
@@ -236,6 +299,34 @@ export default class extends Module {
         }
       }
     }
+
+    // 保存されたYouTubeのURLを会話履歴から取得
+    if (aiChat.history && aiChat.history.length > 0) {
+      // historyの最初のユーザーメッセージをチェック
+      const firstUserMessage = aiChat.history.find(
+        (entry) => entry.role === 'user'
+      );
+      if (firstUserMessage) {
+        const urlexp = RegExp(
+          "(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)",
+          'g'
+        );
+        const urlarray = [...firstUserMessage.content.matchAll(urlexp)];
+
+        for (const url of urlarray) {
+          if (this.isYoutubeUrl(url[0])) {
+            const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
+            // 重複を避ける
+            if (!youtubeURLs.includes(normalizedUrl)) {
+              this.log('Found YouTube URL in history: ' + normalizedUrl);
+              youtubeURLs.push(normalizedUrl);
+              hasYoutubeUrl = true;
+            }
+          }
+        }
+      }
+    }
+
     const systemInstruction: GeminiSystemInstruction = {
       role: 'system',
       parts: [{ text: systemInstructionText }],
@@ -243,6 +334,18 @@ export default class extends Module {
 
     // ファイルが存在する場合、ファイルを添付して問い合わせ
     parts = [{ text: aiChat.question }];
+
+    // YouTubeのURLをfileDataとして追加
+    for (const youtubeURL of youtubeURLs) {
+      parts.push({
+        fileData: {
+          mimeType: 'video/mp4',
+          fileUri: youtubeURL,
+        },
+      });
+    }
+
+    // 画像ファイルを追加
     if (files.length >= 1) {
       for (const file of files) {
         parts.push({
@@ -269,8 +372,9 @@ export default class extends Module {
       contents: contents,
       systemInstruction: systemInstruction,
     };
-    // gemini api grounding support. ref:https://github.com/google-gemini/cookbook/blob/09f3b17df1751297798c2b498cae61c6bf710edc/quickstarts/Search_Grounding.ipynb
-    if (aiChat.grounding) {
+
+    // YouTubeURLがある場合はグラウンディングを無効化
+    if (aiChat.grounding && !hasYoutubeUrl) {
       geminiOptions.tools = [{ google_search: {} }];
     }
 
@@ -340,7 +444,13 @@ export default class extends Module {
                     i
                   ].web.hasOwnProperty('title')
                 ) {
-                  groundingMetadata += `参考(${i + 1}): [${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.title}](${res_data.candidates[0].groundingMetadata.groundingChunks[i].web.uri})\n`;
+                  groundingMetadata += `参考(${i + 1}): [${
+                    res_data.candidates[0].groundingMetadata.groundingChunks[i]
+                      .web.title
+                  }](${
+                    res_data.candidates[0].groundingMetadata.groundingChunks[i]
+                      .web.uri
+                  })\n`;
                 }
               }
             }
@@ -368,15 +478,33 @@ export default class extends Module {
       }
     } catch (err: unknown) {
       this.log('Error By Call Gemini');
+      let errorCode = null;
+      let errorMessage = null;
+
+      // HTTPErrorからエラーコードと内容を取得
+      if (err && typeof err === 'object' && 'response' in err) {
+        const httpError = err as any;
+        errorCode = httpError.response?.statusCode;
+        errorMessage = httpError.response?.statusMessage || httpError.message;
+      }
+
       if (err instanceof Error) {
         this.log(`${err.name}\n${err.message}\n${err.stack}`);
       }
+
+      // エラー情報を返す
+      return { error: true, errorCode, errorMessage };
     }
     return responseText;
   }
 
   @bindThis
-  private async note2base64File(notesId: string) {
+  private async note2base64File(notesId: string, isChat: boolean) {
+    // チャットメッセージの場合は画像取得をスキップ
+    if (isChat) {
+      return [];
+    }
+
     const noteData = await this.ai.api('notes/show', { noteId: notesId });
     let files: base64File[] = [];
     if (noteData !== null && noteData.hasOwnProperty('files')) {
@@ -424,7 +552,6 @@ export default class extends Module {
       const relation = await this.ai?.api('users/relation', {
         userId: msg.userId,
       });
-      // this.log('Relation data:' + JSON.stringify(relation));
 
       if (relation[0]?.isFollowing !== true) {
         this.log('The user is not following me:' + msg.userId);
@@ -433,15 +560,26 @@ export default class extends Module {
       }
     }
 
-    const conversationData = await this.ai.api('notes/conversation', {
-      noteId: msg.id,
-    });
-
     let exist: AiChatHist | null = null;
-    if (conversationData != undefined) {
-      for (const message of conversationData) {
-        exist = this.aichatHist.findOne({ postId: message.id });
-        if (exist != null) return false;
+
+    // チャットメッセージの場合、会話APIは使わず直接処理する
+    if (msg.isChat) {
+      exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: msg.userId,
+      });
+
+      if (exist != null) return false;
+    } else {
+      const conversationData = await this.ai.api('notes/conversation', {
+        noteId: msg.id,
+      });
+
+      if (conversationData != undefined) {
+        for (const message of conversationData) {
+          exist = this.aichatHist.findOne({ postId: message.id });
+          if (exist != null) return false;
+        }
       }
     }
 
@@ -451,7 +589,10 @@ export default class extends Module {
       createdAt: Date.now(),
       type: type,
       fromMention: true,
+      isChat: msg.isChat,
+      chatUserId: msg.isChat ? msg.userId : undefined,
     };
+
     if (msg.quoteId) {
       const quotedNote = await this.ai.api('notes/show', {
         noteId: msg.quoteId,
@@ -478,14 +619,55 @@ export default class extends Module {
     this.log('contextHook...');
     if (msg.text == null) return false;
 
-    // msg.idをもとにnotes/conversationを呼び出し、該当のidかチェック
-    const conversationData = await this.ai.api('notes/conversation', {
-      noteId: msg.id,
-    });
+    // チャットモードでaichatを終了するコマンドを追加
+    if (
+      msg.isChat &&
+      (msg.includes(['aichat 終了']) ||
+        msg.includes(['aichat 終わり']) ||
+        msg.includes(['aichat やめる']) ||
+        msg.includes(['aichat 止めて']))
+    ) {
+      const exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: msg.userId,
+      });
 
-    // 結果がnullやサイズ0の場合は終了
-    if (conversationData == null || conversationData.length == 0) {
-      this.log('conversationData is nothing.');
+      if (exist != null) {
+        this.aichatHist.remove(exist);
+        this.unsubscribeReply(key);
+        msg.reply(
+          '藍チャットを終了しました。また何かあればお声がけくださいね！'
+        );
+        return true;
+      }
+    }
+
+    let exist: AiChatHist | null = null;
+
+    // チャットメッセージの場合
+    if (msg.isChat) {
+      exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: msg.userId,
+      });
+    } else {
+      const conversationData = await this.ai.api('notes/conversation', {
+        noteId: msg.id,
+      });
+
+      if (conversationData == null || conversationData.length == 0) {
+        this.log('conversationData is nothing.');
+        return false;
+      }
+
+      for (const message of conversationData) {
+        exist = this.aichatHist.findOne({ postId: message.id });
+        if (exist != null) break;
+      }
+    }
+
+    if (exist == null) {
+      this.log('conversation context is not found.');
       return false;
     }
 
@@ -495,16 +677,6 @@ export default class extends Module {
     if (relation[0]?.isFollowing !== true) {
       this.log('The user is not following me: ' + msg.userId);
       msg.reply('あなたはaichatを実行する権限がありません。');
-      return false;
-    }
-
-    let exist: AiChatHist | null = null;
-    for (const message of conversationData) {
-      exist = this.aichatHist.findOne({ postId: message.id });
-      if (exist != null) break;
-    }
-    if (exist == null) {
-      this.log('conversationData is not found.');
       return false;
     }
 
@@ -543,16 +715,13 @@ export default class extends Module {
     const choseNote =
       interestedNotes[Math.floor(Math.random() * interestedNotes.length)];
 
-    // aichatHistに該当のポストが見つかった場合は会話中のためaichatRandomTalkでは対応しない
     let exist: AiChatHist | null = null;
 
-    // 選択されたノート自体が会話中のidかチェック
     exist = this.aichatHist.findOne({
       postId: choseNote.id,
     });
     if (exist != null) return false;
 
-    // msg.idをもとにnotes/childrenを呼び出し、会話中のidかチェック
     const childrenData = await this.ai.api('notes/children', {
       noteId: choseNote.id,
     });
@@ -565,7 +734,6 @@ export default class extends Module {
       }
     }
 
-    // msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
     const conversationData = await this.ai.api('notes/conversation', {
       noteId: choseNote.id,
     });
@@ -583,8 +751,6 @@ export default class extends Module {
       return false;
     }
 
-    // const friend: Friend | null = this.ai.lookupFriend(choseNote.userId);
-    // if (friend == null || friend.love < 7 || choseNote.user.isBot) return false;
     if (choseNote.user.isBot) return false;
 
     const relation = await this.ai.api('users/relation', {
@@ -617,11 +783,22 @@ export default class extends Module {
 
   @bindThis
   private async autoNote() {
+    if (config.autoNoteDisableNightPosting) {
+      const now = new Date();
+      const hour = now.getHours();
+      if (hour >= 23 || hour < 5) {
+        this.log('深夜のため自動ノート投稿をスキップします（' + hour + '時）');
+        return;
+      }
+    }
+
     if (
       config.geminiAutoNoteProbability !== undefined &&
-      !isNaN(Number.parseFloat(config.geminiAutoNoteProbability))
+      !isNaN(Number.parseFloat(String(config.geminiAutoNoteProbability)))
     ) {
-      const probability = Number.parseFloat(config.geminiAutoNoteProbability);
+      const probability = Number.parseFloat(
+        String(config.geminiAutoNoteProbability)
+      );
       if (Math.random() >= probability) {
         this.log(
           `Gemini自動ノート投稿の確率によりスキップされました: probability=${probability}`
@@ -641,7 +818,7 @@ export default class extends Module {
       key: config.geminiApiKey,
       fromMention: false,
     };
-    const base64Files: base64File[] = []; // 自動ノートの場合はファイルは添付しない
+    const base64Files: base64File[] = [];
     const text = await this.genTextByGemini(aiChat, base64Files);
     if (text) {
       this.ai.post({ text: text + ' #aichat' });
@@ -658,11 +835,9 @@ export default class extends Module {
       prompt = config.prompt;
     }
 
-    // groudingサポート
     if (msg.includes([GROUNDING_TARGET])) {
       exist.grounding = true;
     }
-    // 設定で、デフォルトgroundingがONの場合、メンションから来たときは強制的にgroundingをONとする(ランダムトークの場合は勝手にGoogle検索するのちょっと気が引けるため...)
     if (
       exist.fromMention &&
       config.aichatGroundingWithGoogleSearchAlwaysEnabled
@@ -679,6 +854,21 @@ export default class extends Module {
       .replace(GROUNDING_TARGET, '')
       .trim();
 
+    const youtubeUrls: string[] = exist.youtubeUrls || [];
+
+    const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+    const urlarray = [...question.matchAll(urlexp)];
+    if (urlarray.length > 0) {
+      for (const url of urlarray) {
+        if (this.isYoutubeUrl(url[0])) {
+          const normalizedUrl = this.normalizeYoutubeUrl(url[0]);
+          if (!youtubeUrls.includes(normalizedUrl)) {
+            youtubeUrls.push(normalizedUrl);
+          }
+        }
+      }
+    }
+
     const friend: Friend | null = this.ai.lookupFriend(msg.userId);
     let friendName: string | undefined;
     if (friend != null && friend.name != null) {
@@ -689,7 +879,6 @@ export default class extends Module {
       friendName = msg.user.username;
     }
 
-    // Ensure Gemini API key is set
     if (!config.geminiApiKey) {
       msg.reply(serifs.aichat.nothing(exist.type));
       return false;
@@ -703,10 +892,26 @@ export default class extends Module {
       history: exist.history,
       friendName: friendName,
       fromMention: exist.fromMention,
+      grounding: exist.grounding,
     };
 
-    const base64Files: base64File[] = await this.note2base64File(msg.id);
+    const base64Files: base64File[] = await this.note2base64File(
+      msg.id,
+      msg.isChat
+    );
     text = await this.genTextByGemini(aiChat, base64Files);
+
+    if (text && typeof text === 'object' && 'error' in text) {
+      this.log('The result is invalid due to an HTTP error.');
+      msg.reply(
+        serifs.aichat.error(
+          exist.type,
+          (text as any).errorCode,
+          (text as any).errorMessage
+        )
+      );
+      return false;
+    }
 
     if (text == null || text == '') {
       this.log(
@@ -725,7 +930,8 @@ export default class extends Module {
       if (exist.history.length > 10) {
         exist.history.shift();
       }
-      this.aichatHist.insertOne({
+
+      const newRecord: AiChatHist = {
         postId: reply.id,
         createdAt: Date.now(),
         type: exist.type,
@@ -734,19 +940,52 @@ export default class extends Module {
         grounding: exist.grounding,
         fromMention: exist.fromMention,
         originalNoteId: exist.postId,
+        youtubeUrls: youtubeUrls.length > 0 ? youtubeUrls : undefined,
+        isChat: msg.isChat,
+        chatUserId: msg.isChat ? msg.userId : undefined,
+      };
+
+      this.aichatHist.insertOne(newRecord);
+
+      this.subscribeReply(
+        reply.id,
+        msg.isChat,
+        msg.isChat ? msg.userId : reply.id
+      );
+      this.setTimeoutWithPersistence(TIMEOUT_TIME, {
+        id: reply.id,
+        isChat: msg.isChat,
+        userId: msg.userId,
       });
 
-      this.subscribeReply(reply.id, reply.id);
-      this.setTimeoutWithPersistence(TIMEOUT_TIME, { id: reply.id });
+      // チャットモードで、かつ最初のメッセージ（履歴が2つしかない）の場合に終了方法を教える
+      if (msg.isChat && exist.history && exist.history.length <= 2) {
+        setTimeout(() => {
+          this.ai.sendMessage(msg.userId, {
+            text: '💡 チャット中に「aichat 終了」「aichat 終わり」「aichat やめる」「aichat 止めて」のいずれかと送信すると会話を終了できます。',
+          });
+        }, 1000); // 少し間を空けて送信
+      }
     });
     return true;
   }
 
   @bindThis
-  private async timeoutCallback({ id }) {
+  private async timeoutCallback(data) {
     this.log('timeoutCallback...');
-    const exist = this.aichatHist.findOne({ postId: id });
-    this.unsubscribeReply(id);
+    let exist: AiChatHist | null = null;
+
+    if (data.isChat) {
+      exist = this.aichatHist.findOne({
+        isChat: true,
+        chatUserId: data.userId,
+      });
+      this.unsubscribeReply(data.userId);
+    } else {
+      exist = this.aichatHist.findOne({ postId: data.id });
+      this.unsubscribeReply(data.id);
+    }
+
     if (exist != null) {
       this.aichatHist.remove(exist);
     }

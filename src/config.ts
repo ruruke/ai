@@ -18,11 +18,12 @@ type Config = {
   geminiPostMode?: string;
   prompt?: string;
   autoNotePrompt?: string;
-  autoNoteIntervalMinutes?: string;
-  geminiAutoNoteProbability?: string;
+  autoNoteIntervalMinutes?: number;
+  autoNoteDisableNightPosting?: boolean;
+  geminiAutoNoteProbability?: number;
   aichatRandomTalkEnabled?: boolean;
-  aichatRandomTalkProbability?: string;
-  aichatRandomTalkIntervalMinutes?: string;
+  aichatRandomTalkProbability?: number;
+  aichatRandomTalkIntervalMinutes?: number;
   aichatGroundingWithGoogleSearchAlwaysEnabled?: boolean;
   mecab?: string;
   mecabDic?: string;
@@ -34,13 +35,13 @@ type Config = {
   postNotPublic?: boolean;
   defaultVisibility?: string;
   earthquakeWarning?: {
-    requestTimeoutMs?: number;
-    maxErrorRetries?: number;
-    errorCooldownMs?: number;
     minIntensityThreshold?: number;
     minMagunitudeForWeak?: number;
-    maxReportHistory?: number;
-    checkIntervalMs?: number;
+    websocketReconnectMaxAttempts?: number;
+    websocketReconnectDelay?: number;
+    maxReconnectDelay?: number;
+    heartbeatTimeoutMs?: number;
+    heartbeatIntervalMs?: number;
   };
   kiatsu?: {
     locationCode?: string;
@@ -65,23 +66,26 @@ if (!config.mazeEnable) config.mazeEnable = false;
 if (!config.pollEnable) config.pollEnable = false;
 if (!config.defaultVisibility) config.defaultVisibility = 'public';
 if (config.postNotPublic === undefined) config.postNotPublic = false;
+if (config.autoNoteDisableNightPosting === undefined)
+  config.autoNoteDisableNightPosting = true;
 
 // 地震速報の設定デフォルト値
 if (!config.earthquakeWarning) config.earthquakeWarning = {};
-if (config.earthquakeWarning.requestTimeoutMs === undefined)
-  config.earthquakeWarning.requestTimeoutMs = 10000;
-if (config.earthquakeWarning.maxErrorRetries === undefined)
-  config.earthquakeWarning.maxErrorRetries = 5;
-if (config.earthquakeWarning.errorCooldownMs === undefined)
-  config.earthquakeWarning.errorCooldownMs = 60000;
 if (config.earthquakeWarning.minIntensityThreshold === undefined)
   config.earthquakeWarning.minIntensityThreshold = 3;
 if (config.earthquakeWarning.minMagunitudeForWeak === undefined)
   config.earthquakeWarning.minMagunitudeForWeak = 4.0;
-if (config.earthquakeWarning.maxReportHistory === undefined)
-  config.earthquakeWarning.maxReportHistory = 100;
-if (config.earthquakeWarning.checkIntervalMs === undefined)
-  config.earthquakeWarning.checkIntervalMs = 1000;
+// WebSocket関連の設定
+if (config.earthquakeWarning.websocketReconnectMaxAttempts === undefined)
+  config.earthquakeWarning.websocketReconnectMaxAttempts = 10;
+if (config.earthquakeWarning.websocketReconnectDelay === undefined)
+  config.earthquakeWarning.websocketReconnectDelay = 5000;
+if (config.earthquakeWarning.maxReconnectDelay === undefined)
+  config.earthquakeWarning.maxReconnectDelay = 300000;
+if (config.earthquakeWarning.heartbeatTimeoutMs === undefined)
+  config.earthquakeWarning.heartbeatTimeoutMs = 120000;
+if (config.earthquakeWarning.heartbeatIntervalMs === undefined)
+  config.earthquakeWarning.heartbeatIntervalMs = 60000;
 
 // 気圧モジュールの設定デフォルト値
 if (!config.kiatsu) config.kiatsu = {};

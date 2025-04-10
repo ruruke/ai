@@ -45,6 +45,7 @@ export default class extends Module {
           };
         } catch (error) {
           console.error('Failed to follow user:', error);
+          return false;
         }
       } else if (!msg.user.isFollowing) {
         await msg.reply('どなたさまですか？');
@@ -55,6 +56,7 @@ export default class extends Module {
     } else {
       return false;
     }
+    return false;
   }
 
   /**
