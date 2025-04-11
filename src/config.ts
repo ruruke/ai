@@ -33,6 +33,7 @@ type Config = {
   mazeEnable?: boolean;
   pollEnable?: boolean;
   postNotPublic?: boolean;
+	emoji_reaction?: boolean;
   defaultVisibility?: string;
   earthquakeWarning?: {
     minIntensityThreshold?: number;
