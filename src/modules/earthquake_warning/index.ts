@@ -64,6 +64,17 @@ interface EarthquakeEvent {
   reportCount: number;
   isFinal: boolean;
   isCancel: boolean;
+  connectionId: string;
+}
+
+interface EarthquakeMessageGenerator {
+  generateInitialMessage(data: WolfxEarthquakeData): string;
+  generateUpdateMessage(
+    data: WolfxEarthquakeData,
+    existingEvent: EarthquakeEvent
+  ): string;
+  generateFinalMessage(data: WolfxEarthquakeData): string;
+  generateCancellationMessage(): string;
 }
 
 export default class extends Module {
@@ -86,12 +97,18 @@ export default class extends Module {
   // 接続後のデータ無視制御用
   private ignoreInitialData = true;
   private initialDataTimer: NodeJS.Timeout | null = null;
+  private connectionId: string = ''; // 空文字列で初期化
 
   @bindThis
   public install() {
     this.log('地震警報モジュールを初期化しています...');
+    this.connectionId = this.generateConnectionId();
     this.connectWebSocket();
     return {};
+  }
+
+  private generateConnectionId(): string {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   }
 
   @bindThis
@@ -162,7 +179,7 @@ export default class extends Module {
         this.log(
           `JSON解析エラー: ${parseError}、受信データ: ${data
             .toString()
-            .substring(0, 100)}`
+            .slice(0, 100)}`
         );
         return;
       }
@@ -417,19 +434,21 @@ export default class extends Module {
 
   @bindThis
   private async processNewEarthquake(data: WolfxEarthquakeData): Promise<void> {
-    // 初回メッセージ生成（isFinalの状態を渡す）
-    const message = this.generateEarthquakeMessage(data, true);
+    // 既存のイベントをチェック
+    const existingEvent = this.activeEvents.get(data.EventID);
+    if (existingEvent && existingEvent.connectionId !== this.connectionId) {
+      this.log(`他の接続で既に処理されているイベントです: ${data.EventID}`);
+      return;
+    }
 
-    // 最初から最終報の場合はメッセージに明示
+    const message = this.generateEarthquakeMessage(data, true);
     const finalMessage = data.isFinal ? `【最終報】\n${message}` : message;
 
     try {
-      // 投稿を行い、結果を取得
       const post = await this.ai.post({
         text: finalMessage,
       });
 
-      // イベント情報を保存
       this.activeEvents.set(data.EventID, {
         eventId: data.EventID,
         initialPostId: post.id,
@@ -437,17 +456,14 @@ export default class extends Module {
         reportCount: 1,
         isFinal: data.isFinal,
         isCancel: data.isCancel,
+        connectionId: this.connectionId,
       });
 
       if (data.isFinal) {
         this.log(
           `新しい地震速報（最終報）を送信しました: ${data.Hypocenter} M${data.Magunitude}`
         );
-
-        // 最初から最終報なので一定時間後にイベント情報をクリーンアップ
-        setTimeout(() => {
-          this.activeEvents.delete(data.EventID);
-        }, 3600000); // 1時間後
+        this.scheduleEventCleanup(data.EventID);
       } else {
         this.log(
           `新しい地震速報を送信しました: ${data.Hypocenter} M${data.Magunitude}`
@@ -463,21 +479,26 @@ export default class extends Module {
     data: WolfxEarthquakeData,
     existingEvent: EarthquakeEvent
   ): Promise<void> {
-    // 報告回数をインクリメント
-    const reportNumber = existingEvent.reportCount + 1;
+    // 接続IDのチェック
+    if (existingEvent.connectionId !== this.connectionId) {
+      this.log(
+        `他の接続で処理されているイベントの更新は無視します: ${data.EventID}`
+      );
+      return;
+    }
 
-    // 続報メッセージ生成
-    let message = `【続報 #${reportNumber}】\n`;
-    message += this.generateEarthquakeMessage(data, false);
+    const reportNumber = existingEvent.reportCount + 1;
+    const message = `【続報 #${reportNumber}】\n${this.generateEarthquakeMessage(
+      data,
+      false
+    )}`;
 
     try {
-      // 返信として投稿
-      const post = await this.ai.post({
+      await this.ai.post({
         text: message,
         replyId: existingEvent.initialPostId,
       });
 
-      // イベント情報を更新
       this.activeEvents.set(data.EventID, {
         ...existingEvent,
         lastUpdate: Date.now(),
@@ -770,5 +791,12 @@ export default class extends Module {
   private randomChoice(a: Array<string>): string {
     const r = Math.floor(Math.random() * a.length);
     return a[r];
+  }
+
+  private scheduleEventCleanup(eventId: string): void {
+    setTimeout(() => {
+      this.activeEvents.delete(eventId);
+      this.lastEarthquakeData.delete(eventId);
+    }, 3600000); // 1時間後
   }
 }
