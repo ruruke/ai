@@ -518,6 +518,13 @@ export default class extends Module {
     data: WolfxEarthquakeData,
     existingEvent: EarthquakeEvent
   ): Promise<void> {
+    if (existingEvent.connectionId !== this.connectionId) {
+      this.log(
+        `他の接続で処理されているイベントのキャンセルは無視します: ${data.EventID}`
+      );
+      return;
+    }
+
     const message = `さっきの地震速報は取り消されました。実際の揺れはなかったようです。`;
 
     try {
@@ -526,7 +533,6 @@ export default class extends Module {
         replyId: existingEvent.initialPostId,
       });
 
-      // イベント情報を更新
       this.activeEvents.set(data.EventID, {
         ...existingEvent,
         isCancel: true,
@@ -534,11 +540,7 @@ export default class extends Module {
       });
 
       this.log(`地震速報のキャンセルを送信しました: ${data.EventID}`);
-
-      // 一定時間後にイベント情報をクリーンアップ
-      setTimeout(() => {
-        this.activeEvents.delete(data.EventID);
-      }, 3600000); // 1時間後
+      this.scheduleEventCleanup(data.EventID);
     } catch (error) {
       this.log(`キャンセル送信エラー: ${error}`);
     }
@@ -549,7 +551,13 @@ export default class extends Module {
     data: WolfxEarthquakeData,
     existingEvent: EarthquakeEvent
   ): Promise<void> {
-    // 既に最終報として処理済みの場合はスキップ
+    if (existingEvent.connectionId !== this.connectionId) {
+      this.log(
+        `他の接続で処理されているイベントの最終報は無視します: ${data.EventID}`
+      );
+      return;
+    }
+
     if (existingEvent.isFinal) {
       this.log(`すでに最終報として処理済みのイベントです: ${data.EventID}`);
       return;
@@ -566,7 +574,6 @@ export default class extends Module {
         replyId: existingEvent.initialPostId,
       });
 
-      // イベント情報を更新
       this.activeEvents.set(data.EventID, {
         ...existingEvent,
         isFinal: true,
@@ -574,11 +581,7 @@ export default class extends Module {
       });
 
       this.log(`地震速報の最終報を送信しました: ${data.EventID}`);
-
-      // 一定時間後にイベント情報をクリーンアップ
-      setTimeout(() => {
-        this.activeEvents.delete(data.EventID);
-      }, 3600000); // 1時間後
+      this.scheduleEventCleanup(data.EventID);
     } catch (error) {
       this.log(`最終報送信エラー: ${error}`);
     }
