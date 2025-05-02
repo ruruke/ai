@@ -11,7 +11,7 @@ import { sleep } from '@/utils/sleep.js';
 export default class extends Module {
   public readonly name = 'emoji-react';
 
-  private htl: ReturnType<Stream['useSharedConnection']>;
+  private htl!: ReturnType<Stream['useSharedConnection']>;
 
   @bindThis
   public install() {
@@ -38,7 +38,10 @@ export default class extends Module {
       });
     };
 
-    const customEmojis = note.text.match(/:([^\n:]+?):/g);
+    // カスタム絵文字の厳密な検出: :emoji_name: のみ許可（英数字・_・+・-）
+    const customEmojis = note.text.match(
+      /(?<=^|\s):([a-zA-Z0-9_+\-]+?):(?=\s|$)/g
+    );
     if (customEmojis) {
       // カスタム絵文字が複数種類ある場合はキャンセル
       if (!customEmojis.every((val, i, arr) => val === arr[0])) return;
