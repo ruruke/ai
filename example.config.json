@@ -57,5 +57,7 @@
 		"postIntervalMs": 43200000,
 		"errorCooldownMs": 3600000,
 		"minPostLevel": 2
-	}
+	},
+	"weatherAutoNotePref": "東京都",
+	"weatherAutoNoteHour": 7
 }
