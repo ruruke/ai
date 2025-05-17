@@ -524,6 +524,28 @@ const defaultSerifs = {
     see: (item) => `お散歩していたら、道に${item}が落ちているのを見たんです！`,
     expire: (item) => `気づいたら、${item}の賞味期限が切れてました…`,
   },
+
+  /**
+   * 天気予報（引数を受けて文字列を返す関数形式）
+   */
+  weather: {
+    forecast: (place, dateLabel, telop, tempStr, rainStr) =>
+      `${place}の${dateLabel}のお天気は「${telop}」みたいですよ！${tempStr}${rainStr}\n今日も素敵な一日になりますように♪`,
+    notFound: (place) =>
+      `ごめんなさい、「${place}」の天気予報は見つかりませんでした…\nもう一度地名を確認してみてくださいね。`,
+    fetchError:
+      'うぅ…天気データの取得に失敗しちゃいました。また後で試してみてください…',
+    areaError: '地域データの取得に失敗しちゃいました。ごめんなさい…',
+    noTemp: '今日は気温データがありませんでした。ごめんなさい…',
+    autoNote: {
+      sunny: '今日はいい天気ですね！',
+      cloudy: '今日はちょっと曇り空です。',
+      rainy: '傘が必要かもしれません！',
+      snowy: '今日は雪が降りそうです。あたたかくしてくださいね！',
+      thunder: '雷に気をつけてくださいね！',
+      other: '今日も一日がんばりましょう♪',
+    },
+  },
 };
 
 function getParamNames(func: Function): string[] {

@@ -52,6 +52,8 @@ type Config = {
     errorCooldownMs?: number;
     minPostLevel?: number;
   };
+  weatherAutoNotePref?: string;
+  weatherAutoNoteHour?: number;
 };
 
 import { readFile } from 'fs/promises';
@@ -102,6 +104,10 @@ if (config.kiatsu.postIntervalMs === undefined)
 if (config.kiatsu.errorCooldownMs === undefined)
   config.kiatsu.errorCooldownMs = 60 * 60 * 1000;
 if (config.kiatsu.minPostLevel === undefined) config.kiatsu.minPostLevel = 2;
+
+// 天気予報自動投稿の設定デフォルト値
+if (!config.weatherAutoNotePref) config.weatherAutoNotePref = '東京都';
+if (!config.weatherAutoNoteHour) config.weatherAutoNoteHour = 7;
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';
