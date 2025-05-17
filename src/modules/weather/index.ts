@@ -36,8 +36,19 @@ function weatherSerif(
   return serifs.weather.forecast(place, dateLabel, telop, tempStr, rainStr);
 }
 
+let prefMapCache: { data: Record<string, string>; fetchedAt: number } | null =
+  null;
+
 // 地名→ID変換
 async function fetchPrefIdMap(): Promise<Record<string, string>> {
+  // 6時間以内ならキャッシュを返却
+  if (
+    prefMapCache &&
+    Date.now() - prefMapCache.fetchedAt < 6 * 60 * 60 * 1000
+  ) {
+    return prefMapCache.data;
+  }
+
   const xmlUrl = 'https://weather.tsukumijima.net/primary_area.xml';
   const xml = (await axios.get(xmlUrl)).data;
   const parser = new XMLParser({ ignoreAttributes: false });
@@ -53,6 +64,8 @@ async function fetchPrefIdMap(): Promise<Record<string, string>> {
       map[prefName] = pref.city['@_id'];
     }
   }
+
+  prefMapCache = { data: map, fetchedAt: Date.now() };
   return map;
 }
 
@@ -120,7 +133,7 @@ async function postWeatherNote(this: any, place: string) {
     // ノート投稿
     this.ai.api('notes/create', { text: text + '\n' + emoji });
   } catch (e) {
-    // 失敗時は何もしない
+    console.error("Error in postWeatherNote:", e);
   }
 }
 

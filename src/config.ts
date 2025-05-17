@@ -112,4 +112,4 @@ if (!config.weatherAutoNoteHour) config.weatherAutoNoteHour = 7;
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';
 
-export default config as Config & { weatherAutoNoteHour?: number };
+export default config as Config;
