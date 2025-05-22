@@ -5,230 +5,395 @@ import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 import serifs from '../../serifs.js';
 import config from '../../config.js';
+import * as mfm from '@/utils/mfm.js';
 
-// 天気種別→絵文字マッピング
-function weatherEmoji(telop: string): string {
-  if (telop.includes('雷')) return '⚡️';
-  if (telop.includes('雪')) return '❄️';
-  if (telop.includes('雨')) return '🌧️';
-  if (telop.includes('曇')) return '☁️';
-  if (telop.includes('晴')) return '☀️';
-  return '🌈';
+const WEATHER_API_BASE_URL = 'https://weather.tsukumijima.net';
+const PRIMARY_AREA_XML_URL = `${WEATHER_API_BASE_URL}/primary_area.xml`;
+const FORECAST_API_URL_BASE = `${WEATHER_API_BASE_URL}/api/forecast/city/`;
+
+const PREF_MAP_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+const DEFAULT_WEATHER_PLACE = config.weatherAutoNotePref ?? '東京都';
+const DEFAULT_AUTO_NOTE_HOUR = config.weatherAutoNoteHour ?? 7;
+
+const WEATHER_EMOJI_MAP: Record<string, string> = {
+  雷: '⚡️',
+  雪: '❄️',
+  雨: '🌧️',
+  曇: '☁️',
+  晴: '☀️',
+};
+const DEFAULT_WEATHER_EMOJI = '🌈';
+
+const WEATHER_THEME_COLOR_MAP: Record<string, string> = {
+  晴: 'ff8c00', // オレンジ
+  曇: '778899', // ライトスレートグレー
+  雨: '4682b4', // スチールブルー
+  雪: 'add8e6', // ライトブルー
+  雷: 'ff00ff', // マゼンタ
+};
+const DEFAULT_THEME_COLOR = '777777'; // グレー
+
+interface WeatherInfo {
+  place: string;
+  dateLabel: string;
+  telop: string;
+  tempMin: string | null;
+  tempMax: string | null;
+  rain: {
+    T00_06: string;
+    T06_12: string;
+    T12_18: string;
+    T18_24: string;
+  } | null;
+  additionalMessage?: string;
+  greeting?: string;
 }
 
-// 天気予報メッセージ組み立て
-function weatherSerif(
-  place: string,
-  dateLabel: string,
-  telop: string,
-  tempMin: string | null,
-  tempMax: string | null,
-  rain: any
-) {
-  let rainStr = '';
-  if (rain) {
-    rainStr = `\n降水確率: 0-6時:${rain.T00_06} 6-12時:${rain.T06_12} 12-18時:${rain.T12_18} 18-24時:${rain.T18_24}`;
-  }
-  let tempStr = '';
-  if (tempMin || tempMax) {
-    tempStr = `\n気温: 最低${tempMin ?? '–'}℃ 最高${tempMax ?? '–'}℃`;
-  }
-  return serifs.weather.forecast(place, dateLabel, telop, tempStr, rainStr);
+interface RawForecast {
+  dateLabel: string;
+  telop: string;
+  temperature?: {
+    min?: { celsius?: string };
+    max?: { celsius?: string };
+  };
+  chanceOfRain?: WeatherInfo['rain'];
+}
+
+interface RawWeatherData {
+  title: string;
+  forecasts: RawForecast[];
+  location?: Record<string, unknown>; // Can be more specific if needed
+  error?: string; // API might return error messages
 }
 
 let prefMapCache: { data: Record<string, string>; fetchedAt: number } | null =
   null;
 
-// 地名→ID変換
+function weatherEmoji(telop: string): string {
+  for (const keyword in WEATHER_EMOJI_MAP) {
+    if (telop.includes(keyword)) {
+      return WEATHER_EMOJI_MAP[keyword];
+    }
+  }
+  return DEFAULT_WEATHER_EMOJI;
+}
+
+function getRainProbabilityColor(probability: string): string {
+  const probNum = parseInt(probability.replace('%', ''), 10);
+  if (isNaN(probNum)) return '777777'; // 不明な場合はグレー
+  if (probNum === 0) return '32cd32'; // 0% (緑)
+  if (probNum <= 20) return '6495ed'; // 1-20% (明るい青)
+  if (probNum <= 50) return 'ffa500'; // 21-50% (オレンジ)
+  return 'ff4500'; // 51%以上 (赤)
+}
+
+function getWeatherThemeColor(telop: string): string {
+  for (const keyword in WEATHER_THEME_COLOR_MAP) {
+    if (telop.includes(keyword)) {
+      return WEATHER_THEME_COLOR_MAP[keyword];
+    }
+  }
+  return DEFAULT_THEME_COLOR;
+}
+
+function formatWeatherToMfm(info: WeatherInfo): string {
+  const themeColor = getWeatherThemeColor(info.telop);
+  const title = `${info.place}の${info.dateLabel}の天気`;
+  const emoji = weatherEmoji(info.telop);
+
+  let body = `<center>
+${mfm.bold(mfm.color(title, themeColor))} ${emoji}
+---
+今日の天気は「${mfm.bold(mfm.color(info.telop, themeColor))}」みたいですよ！
+
+`;
+
+  if (info.tempMin || info.tempMax) {
+    body += `🌡️ ${mfm.bold('気温')}
+最高: ${mfm.color(info.tempMax ?? '?', 'ff4500')}℃
+最低: ${mfm.color(info.tempMin ?? '?', '4169e1')}℃
+
+`;
+  }
+
+  if (info.rain) {
+    body += `☔ ${mfm.bold('降水確率')}
+0-6時:  ${mfm.color(info.rain.T00_06, getRainProbabilityColor(info.rain.T00_06))}
+6-12時: ${mfm.color(info.rain.T06_12, getRainProbabilityColor(info.rain.T06_12))}
+12-18時:${mfm.color(info.rain.T12_18, getRainProbabilityColor(info.rain.T12_18))}
+18-24時:${mfm.color(info.rain.T18_24, getRainProbabilityColor(info.rain.T18_24))}
+
+`;
+  }
+
+  if (info.additionalMessage) {
+    body += `${info.additionalMessage}\n\n`;
+  }
+
+  body += `---
+</center>
+`;
+
+  if (info.greeting) {
+    body += `${info.greeting}\n`;
+  }
+
+  const closingMessages = [
+    '今日も素敵な一日になりますように♪ ✨',
+    '良い一日をお過ごしくださいね！ 😊',
+    '何か良いことがありますように！ 🍀',
+    '頑張ってくださいね！応援しています！ 💪',
+    '無理せず、自分のペースでいきましょう。☕',
+  ];
+  const randomClosingMessage =
+    closingMessages[Math.floor(Math.random() * closingMessages.length)];
+  body += `${randomClosingMessage}`;
+
+  return body;
+}
+
 async function fetchPrefIdMap(): Promise<Record<string, string>> {
-  // 6時間以内ならキャッシュを返却
   if (
     prefMapCache &&
-    Date.now() - prefMapCache.fetchedAt < 6 * 60 * 60 * 1000
+    Date.now() - prefMapCache.fetchedAt < PREF_MAP_CACHE_TTL_MS
   ) {
     return prefMapCache.data;
   }
 
-  const xmlUrl = 'https://weather.tsukumijima.net/primary_area.xml';
-  const xml = (await axios.get(xmlUrl)).data;
-  const parser = new XMLParser({ ignoreAttributes: false });
-  const obj = parser.parse(xml);
-  const map: Record<string, string> = {};
-  const prefs = obj.rss.channel['ldWeather:source'].pref;
-  for (const pref of prefs) {
-    const prefName = pref['@_title'] || pref.title;
-    // pref.city[0]['@_id'] で都道府県の代表IDを取得
-    if (Array.isArray(pref.city)) {
-      map[prefName] = pref.city[0]['@_id'];
-    } else if (pref.city) {
-      map[prefName] = pref.city['@_id'];
-    }
-  }
+  try {
+    const response = await axios.get<string>(PRIMARY_AREA_XML_URL, {
+      timeout: 10000,
+    });
+    const xml = response.data;
+    const parser = new XMLParser({ ignoreAttributes: false });
+    const obj = parser.parse(xml);
+    const map: Record<string, string> = {};
 
-  prefMapCache = { data: map, fetchedAt: Date.now() };
-  return map;
+    // XML構造が期待通りであることを確認
+    const prefs = obj?.rss?.channel?.['ldWeather:source']?.pref;
+    if (!Array.isArray(prefs)) {
+      console.error('Unexpected XML structure in primary_area.xml:', obj);
+      throw new Error('Failed to parse prefecture data from XML.');
+    }
+
+    for (const pref of prefs) {
+      const prefName = pref['@_title'] || pref.title;
+      if (prefName && pref.city) {
+        if (
+          Array.isArray(pref.city) &&
+          pref.city.length > 0 &&
+          pref.city[0]['@_id']
+        ) {
+          map[prefName] = pref.city[0]['@_id'];
+        } else if (!Array.isArray(pref.city) && pref.city['@_id']) {
+          map[prefName] = pref.city['@_id'];
+        }
+      }
+    }
+    prefMapCache = { data: map, fetchedAt: Date.now() };
+    return map;
+  } catch (error) {
+    console.error('Failed to fetch or parse primary_area.xml:', error);
+    if (prefMapCache) return prefMapCache.data; // フォールバックとして古いキャッシュを返す
+    throw new Error(
+      'Failed to fetch prefecture ID map and no cache available.'
+    );
+  }
+}
+
+async function getAreaId(
+  place: string,
+  map?: Record<string, string>
+): Promise<string | undefined> {
+  const prefMap = map ?? (await fetchPrefIdMap());
+  let areaId = prefMap[place];
+  if (!areaId) {
+    const found = Object.entries(prefMap).find(([prefName]) =>
+      prefName.startsWith(place)
+    );
+    if (found) areaId = found[1];
+  }
+  return areaId;
+}
+
+async function fetchWeatherData(
+  areaId: string
+): Promise<RawWeatherData | null> {
+  try {
+    const url = `${FORECAST_API_URL_BASE}${areaId}`;
+    const res = await axios.get<RawWeatherData>(url, { timeout: 10000 });
+    if (res.data?.error) {
+      console.error(
+        `Weather API error for areaId ${areaId}: ${res.data.error}`
+      );
+      return null;
+    }
+    if (!res.data || !res.data.forecasts || !res.data.location) {
+      console.error('Invalid weather data received:', res.data);
+      return null;
+    }
+    return res.data;
+  } catch (error) {
+    console.error(`Failed to fetch weather data for areaId ${areaId}:`, error);
+    return null;
+  }
 }
 
 function autoNoteSerif(telop: string): string {
-  if (telop.includes('雷')) return serifs.weather.autoNote.thunder;
-  if (telop.includes('雪')) return serifs.weather.autoNote.snowy;
-  if (telop.includes('雨')) return serifs.weather.autoNote.rainy;
-  if (telop.includes('曇')) return serifs.weather.autoNote.cloudy;
-  if (telop.includes('晴')) return serifs.weather.autoNote.sunny;
+  const serifMap: Record<string, string> = {
+    雷: serifs.weather.autoNote.thunder,
+    雪: serifs.weather.autoNote.snowy,
+    雨: serifs.weather.autoNote.rainy,
+    曇: serifs.weather.autoNote.cloudy,
+    晴: serifs.weather.autoNote.sunny,
+  };
+  for (const keyword in serifMap) {
+    if (telop.includes(keyword)) {
+      return serifMap[keyword];
+    }
+  }
   return serifs.weather.autoNote.other;
 }
 
-function scheduleWeatherAutoNote(
-  postWeatherNote: (place: string) => Promise<void>
-) {
-  // 現在時刻から次の指定時刻までのミリ秒を計算
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(config.weatherAutoNoteHour ?? 7, 0, 0, 0);
-  if (now >= next) next.setDate(next.getDate() + 1);
-  const msUntilNext = next.getTime() - now.getTime();
-  setTimeout(() => {
-    postWeatherNote(config.weatherAutoNotePref ?? '東京都');
-    setInterval(
-      () => postWeatherNote(config.weatherAutoNotePref ?? '東京都'),
-      24 * 60 * 60 * 1000
-    );
-  }, msUntilNext);
-}
-
-async function postWeatherNote(this: any, place: string) {
-  try {
-    const map = await fetchPrefIdMap();
-    let areaId = map[place];
-    if (!areaId) {
-      const found = Object.entries(map).find(([prefName]) =>
-        prefName.startsWith(place)
-      );
-      if (found) areaId = found[1];
-    }
-    if (!areaId) return;
-    const url = `https://weather.tsukumijima.net/api/forecast/city/${areaId}`;
-    const res = await axios.get(url, { timeout: 10000 });
-    const data = res.data;
-    if (!data || !data.forecasts || !data.location) return;
-    const today = data.forecasts[0];
-    const todayTempMin = today.temperature?.min?.celsius;
-    const todayTempMax = today.temperature?.max?.celsius;
-    let text = '';
-    text =
-      autoNoteSerif(today.telop) +
-      '\n' +
-      weatherSerif(
-        data.title,
-        today.dateLabel,
-        today.telop,
-        todayTempMin,
-        todayTempMax,
-        today.chanceOfRain
-      );
-    if (todayTempMin == null && todayTempMax == null) {
-      text += '\n' + serifs.weather.noTemp;
-    }
-    const emoji = weatherEmoji(today.telop);
-    // ノート投稿
-    this.ai.api('notes/create', { text: text + '\n' + emoji });
-  } catch (e) {
-    console.error("Error in postWeatherNote:", e);
-  }
-}
-
-export default class extends Module {
+export default class WeatherModule extends Module {
   public readonly name = 'weather';
 
   @bindThis
   public install() {
-    scheduleWeatherAutoNote(postWeatherNote.bind(this));
+    this.scheduleWeatherAutoNote();
     return {
       mentionHook: this.mentionHook,
     };
   }
 
+  private scheduleWeatherAutoNote() {
+    const now = new Date();
+    const nextRunTime = new Date(now);
+    nextRunTime.setHours(DEFAULT_AUTO_NOTE_HOUR, 0, 0, 0);
+    if (now >= nextRunTime) {
+      nextRunTime.setDate(nextRunTime.getDate() + 1);
+    }
+    const msUntilNext = nextRunTime.getTime() - now.getTime();
+
+    setTimeout(() => {
+      this.postWeatherNoteForAuto(DEFAULT_WEATHER_PLACE);
+      setInterval(
+        () => this.postWeatherNoteForAuto(DEFAULT_WEATHER_PLACE),
+        DAILY_INTERVAL_MS
+      );
+    }, msUntilNext);
+  }
+
+  private async postWeatherNoteForAuto(place: string) {
+    try {
+      const areaId = await getAreaId(place);
+      if (!areaId) {
+        console.warn(`Area ID not found for auto-note: ${place}`);
+        return;
+      }
+
+      const weatherData = await fetchWeatherData(areaId);
+      if (
+        !weatherData ||
+        !weatherData.forecasts ||
+        weatherData.forecasts.length === 0
+      ) {
+        console.warn(`No forecast data for auto-note: ${place}`);
+        return;
+      }
+
+      const todayForecast = weatherData.forecasts[0];
+      const weatherInfo: WeatherInfo = {
+        place: weatherData.title,
+        dateLabel: todayForecast.dateLabel,
+        telop: todayForecast.telop,
+        tempMin: todayForecast.temperature?.min?.celsius ?? null,
+        tempMax: todayForecast.temperature?.max?.celsius ?? null,
+        rain: todayForecast.chanceOfRain ?? null,
+        greeting: autoNoteSerif(todayForecast.telop),
+      };
+
+      if (weatherInfo.tempMin == null && weatherInfo.tempMax == null) {
+        weatherInfo.additionalMessage = serifs.weather.noTemp;
+      }
+
+      const text = formatWeatherToMfm(weatherInfo);
+      this.ai.api('notes/create', { text: text });
+    } catch (e) {
+      console.error('Error in postWeatherNoteForAuto:', e);
+    }
+  }
+
   @bindThis
   private async mentionHook(msg: Message) {
     if (!msg.text) return false;
-    // コマンド検出
-    // 例: てんき 明日 東京, てんき あさって, てんき 東京, てんき
+
     const match = msg.text.match(
       /(?:天気予報|天気|てんき)[\s　]*(今日|明日|明後日|あした|あさって)?[\s　]*([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}a-zA-Z0-9]+)?/u
     );
     if (!match) return false;
-    let day = match[1]?.trim();
-    let place = match[2]?.trim();
 
-    // 日付指定がなければ「今日」
-    if (!day) day = '今日';
-    // 地名がなければconfigの地点
-    if (!place) place = config.weatherAutoNotePref ?? '東京都';
+    let dayInput = match[1]?.trim();
+    let placeInput = match[2]?.trim();
 
-    // 日付ラベル正規化
-    let dateLabel = '今日';
-    if (['明日', 'あした'].includes(day)) dateLabel = '明日';
-    else if (['明後日', 'あさって'].includes(day)) dateLabel = '明後日';
-    else if (['今日'].includes(day)) dateLabel = '今日';
+    const dateLabel = this.normalizeDateLabel(dayInput);
+    const place = placeInput || DEFAULT_WEATHER_PLACE;
 
-    // 地名→ID
     let areaId: string | undefined;
     try {
-      const map = await fetchPrefIdMap();
-      areaId = map[place];
-      if (!areaId) {
-        // 前方一致で探す
-        const found = Object.entries(map).find(([prefName]) =>
-          prefName.startsWith(place)
-        );
-        if (found) {
-          areaId = found[1];
-        }
-      }
+      areaId = await getAreaId(place);
     } catch (e) {
+      console.error(
+        `Error fetching prefIdMap for mentionHook (place: ${place}):`,
+        e
+      );
       msg.reply(serifs.weather.areaError);
       return { reaction: '❌' };
     }
+
     if (!areaId) {
       msg.reply(serifs.weather.notFound(place));
       return { reaction: '❌' };
     }
 
-    // APIリクエスト
-    try {
-      const url = `https://weather.tsukumijima.net/api/forecast/city/${areaId}`;
-      const res = await axios.get(url, { timeout: 10000 });
-      const data = res.data;
-      if (!data || !data.forecasts || !data.location) {
-        msg.reply(serifs.weather.fetchError);
-        return { reaction: '❌' };
-      }
-      // 指定日付の天気を探す
-      const forecast = data.forecasts.find(
-        (f: any) => f.dateLabel === dateLabel
-      );
-      if (!forecast) {
-        msg.reply('その日の天気データが見つかりませんでした。');
-        return { reaction: '❌' };
-      }
-      const tempMin = forecast.temperature?.min?.celsius;
-      const tempMax = forecast.temperature?.max?.celsius;
-      let line = weatherSerif(
-        data.title,
-        forecast.dateLabel,
-        forecast.telop,
-        tempMin,
-        tempMax,
-        forecast.chanceOfRain
-      );
-      if (tempMin == null && tempMax == null) {
-        line += '\n' + serifs.weather.noTemp;
-      }
-      msg.reply(line);
-      return { reaction: weatherEmoji(forecast.telop) };
-    } catch (e) {
+    const weatherData = await fetchWeatherData(areaId);
+    if (!weatherData) {
       msg.reply(serifs.weather.fetchError);
       return { reaction: '❌' };
     }
+
+    const forecast = weatherData.forecasts.find(
+      (f: RawForecast) => f.dateLabel === dateLabel
+    );
+    if (!forecast) {
+      msg.reply(`${dateLabel}の天気データが見つかりませんでした。`);
+      return { reaction: '❌' };
+    }
+
+    const weatherInfo: WeatherInfo = {
+      place: weatherData.title,
+      dateLabel: forecast.dateLabel,
+      telop: forecast.telop,
+      tempMin: forecast.temperature?.min?.celsius ?? null,
+      tempMax: forecast.temperature?.max?.celsius ?? null,
+      rain: forecast.chanceOfRain ?? null,
+    };
+
+    if (weatherInfo.tempMin == null && weatherInfo.tempMax == null) {
+      weatherInfo.additionalMessage = serifs.weather.noTemp;
+    }
+
+    const replyText = formatWeatherToMfm(weatherInfo);
+    msg.reply(replyText);
+    return { reaction: weatherEmoji(forecast.telop) };
+  }
+
+  private normalizeDateLabel(dayInput?: string): string {
+    if (!dayInput) return '今日';
+    if (['明日', 'あした'].includes(dayInput)) return '明日';
+    if (['明後日', 'あさって'].includes(dayInput)) return '明後日';
+    return '今日';
   }
 }
