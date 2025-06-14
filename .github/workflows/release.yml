@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'package.json'
+  workflow_dispatch:
 
 jobs:
   check-version:
