@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    paths:
+      - 'package.json'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version_changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version change
+        id: check
+        run: |
+          if [ -f package.json ]; then
+            CURRENT_VERSION=$(git show HEAD^:package.json 2>/dev/null | grep '_v' | head -1 | cut -d'"' -f4 || echo "")
+            NEW_VERSION=$(grep '_v' package.json | head -1 | cut -d'"' -f4)
+
+            if [ "$CURRENT_VERSION" != "$NEW_VERSION" ] && [ -n "$NEW_VERSION" ]; then
+              echo "Version changed from $CURRENT_VERSION to $NEW_VERSION"
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            else
+              echo "No version change detected"
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "version=" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.version_changed == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.check-version.outputs.version }}
+    steps:
+      - name: Create GitHub Release
+        uses: actions/create-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          release_name: Release v${{ needs.check-version.outputs.version }}
+          body: |
+            Release v${{ needs.check-version.outputs.version }}
+
+            Auto-generated release for version ${{ needs.check-version.outputs.version }}
+          draft: false
+          prerelease: false
+
+  build-docker:
+    needs: create-release
+    if: needs.create-release.outputs.version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Docker Build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'docker-build.yml',
+              ref: context.ref,
+              inputs: {
+                tag: '${{ needs.create-release.outputs.version }}'
+              }
+            });
+            return data;
