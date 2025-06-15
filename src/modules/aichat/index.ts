@@ -98,7 +98,7 @@ const AUTO_NOTE_DEFAULT_PROBABILITY = 0.02;
 
 export default class extends Module {
   public readonly name = 'aichat';
-  private aichatHist: loki.Collection<AiChatHist>;
+  private aichatHist!: loki.Collection<AiChatHist>;
   private randomTalkProbability: number = RANDOMTALK_DEFAULT_PROBABILITY;
   private randomTalkIntervalMinutes: number = RANDOMTALK_DEFAULT_INTERVAL;
 
@@ -390,7 +390,7 @@ export default class extends Module {
     let responseText: string = '';
     try {
       res_data = await got
-        .post(options, { parseJson: (res: string) => JSON.parse(res) })
+        .post(options.url, { parseJson: (res: string) => JSON.parse(res) })
         .json();
       this.log(JSON.stringify(res_data));
       if (res_data.hasOwnProperty('candidates')) {
@@ -505,7 +505,7 @@ export default class extends Module {
       return [];
     }
 
-    const noteData = await this.ai.api('notes/show', { noteId: notesId });
+    const noteData: any = await this.ai.api('notes/show', { noteId: notesId });
     let files: base64File[] = [];
     if (noteData !== null && noteData.hasOwnProperty('files')) {
       for (let i = 0; i < noteData.files.length; i++) {
@@ -549,7 +549,7 @@ export default class extends Module {
     } else {
       this.log('AiChat requested');
 
-      const relation = await this.ai?.api('users/relation', {
+      const relation: any = await this.ai?.api('users/relation', {
         userId: msg.userId,
       });
 
@@ -571,7 +571,7 @@ export default class extends Module {
 
       if (exist != null) return false;
     } else {
-      const conversationData = await this.ai.api('notes/conversation', {
+      const conversationData: any = await this.ai.api('notes/conversation', {
         noteId: msg.id,
       });
 
@@ -594,7 +594,7 @@ export default class extends Module {
     };
 
     if (msg.quoteId) {
-      const quotedNote = await this.ai.api('notes/show', {
+      const quotedNote: any = await this.ai.api('notes/show', {
         noteId: msg.quoteId,
       });
       current.history = [
@@ -651,7 +651,7 @@ export default class extends Module {
         chatUserId: msg.userId,
       });
     } else {
-      const conversationData = await this.ai.api('notes/conversation', {
+      const conversationData: any = await this.ai.api('notes/conversation', {
         noteId: msg.id,
       });
 
@@ -671,7 +671,7 @@ export default class extends Module {
       return false;
     }
 
-    const relation = await this.ai.api('users/relation', {
+    const relation: any = await this.ai.api('users/relation', {
       userId: msg.userId,
     });
     if (relation[0]?.isFollowing !== true) {
@@ -694,9 +694,9 @@ export default class extends Module {
   @bindThis
   private async aichatRandomTalk() {
     this.log('AiChat(randomtalk) started');
-    const tl = await this.ai.api('notes/timeline', { limit: 30 });
+    const tl: any = await this.ai.api('notes/timeline', { limit: 30 });
     const interestedNotes = tl.filter(
-      (note) =>
+      (note: any) =>
         note.userId !== this.ai.account.id &&
         note.text != null &&
         note.replyId == null &&
@@ -722,7 +722,7 @@ export default class extends Module {
     });
     if (exist != null) return false;
 
-    const childrenData = await this.ai.api('notes/children', {
+    const childrenData: any = await this.ai.api('notes/children', {
       noteId: choseNote.id,
     });
     if (childrenData != undefined) {
@@ -734,7 +734,7 @@ export default class extends Module {
       }
     }
 
-    const conversationData = await this.ai.api('notes/conversation', {
+    const conversationData: any = await this.ai.api('notes/conversation', {
       noteId: choseNote.id,
     });
 
@@ -753,7 +753,7 @@ export default class extends Module {
 
     if (choseNote.user.isBot) return false;
 
-    const relation = await this.ai.api('users/relation', {
+    const relation: any = await this.ai.api('users/relation', {
       userId: choseNote.userId,
     });
 
@@ -768,7 +768,7 @@ export default class extends Module {
       let targetedMessage = choseNote;
       if (choseNote.extractedText == undefined) {
         const data = await this.ai.api('notes/show', { noteId: choseNote.id });
-        targetedMessage = new Message(this.ai, data);
+        targetedMessage = new Message(this.ai, data, false);
       }
 
       const result = await this.handleAiChat(current, targetedMessage);
@@ -829,7 +829,7 @@ export default class extends Module {
 
   @bindThis
   private async handleAiChat(exist: AiChatHist, msg: Message) {
-    let text: string | null, aiChat: AiChat;
+    let text: string | { error: boolean; errorCode: null; errorMessage: null; } | null, aiChat: AiChat;
     let prompt: string = '';
     if (config.prompt) {
       prompt = config.prompt;

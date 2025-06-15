@@ -24,35 +24,36 @@ export default class Message {
     text: string;
     renoteId: string;
     replyId: string;
+    visibility?: string; // Add visibility property
   } | null;
   public isChat: boolean;
 
   public get id(): string {
-    return this.chatMessage ? this.chatMessage.id : this.note.id;
+    return this.chatMessage ? this.chatMessage.id : this.note!.id;
   }
 
   public get user(): User {
-    return this.chatMessage ? this.chatMessage.fromUser : this.note.user;
+    return this.chatMessage ? this.chatMessage.fromUser : this.note!.user;
   }
 
   public get userId(): string {
-    return this.chatMessage ? this.chatMessage.fromUserId : this.note.userId;
+    return this.chatMessage ? this.chatMessage.fromUserId : this.note!.userId;
   }
 
   public get text(): string {
-    return this.chatMessage ? this.chatMessage.text : this.note.text;
+    return this.chatMessage ? this.chatMessage.text : this.note!.text;
   }
 
   public get quoteId(): string | null {
-    return this.chatMessage ? null : this.note.renoteId;
+    return this.chatMessage ? null : this.note!.renoteId;
   }
 
   public get replyId(): string | null {
-    return this.chatMessage ? null : this.note.replyId;
+    return this.chatMessage ? null : this.note!.replyId;
   }
 
-  public get visibility(): string | null {
-    return this.chatMessage ? null : this.note.visibility;
+  public get visibility(): string | undefined {
+    return this.chatMessage ? undefined : this.note!.visibility;
   }
 
   /**
@@ -78,7 +79,7 @@ export default class Message {
 
     // メッセージなどに付いているユーザー情報は省略されている場合があるので完全なユーザー情報を持ってくる
     this.ai
-      .api('users/show', {
+      .api<User>('users/show', {
         userId: this.userId,
       })
       .then((user) => {
@@ -111,7 +112,7 @@ export default class Message {
       });
     } else {
       return await this.ai.post({
-        replyId: this.note.id,
+        replyId: this.note!.id,
         text: text,
         fileIds: opts?.file ? [opts?.file.id] : undefined,
         cw: opts?.cw,

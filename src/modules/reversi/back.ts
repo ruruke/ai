@@ -35,11 +35,11 @@ const titles = [
 ];
 
 class Session {
-  private account: User;
+  private account!: User;
   private game: any;
   private form: any;
-  private engine: Reversi.Game;
-  private botColor: Reversi.Color;
+  private engine!: Reversi.Game;
+  private botColor!: Reversi.Color;
 
   private appliedOps: string[] = [];
 
@@ -506,7 +506,7 @@ class Session {
           .post(`${config.host}/api/notes/create`, {
             json: body,
           })
-          .json();
+          .json<{ createdNote: any }>();
 
         return res.createdNote;
       } catch (e) {
