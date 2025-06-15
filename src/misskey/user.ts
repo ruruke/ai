@@ -4,5 +4,6 @@ export type User = {
   username: string;
   host?: string | null;
   isFollowing?: boolean;
+	isFollowed?: boolean;
   isBot: boolean;
 };
