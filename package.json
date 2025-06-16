@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node ./built",
     "start-daemon": "nodemon ./built",
-    "build": "tsc",
+    "build": "tspc",
     "test": "jest",
     "lint": "biome lint src --write",
     "format": "biome format src --write",
