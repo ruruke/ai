@@ -390,7 +390,11 @@ export default class extends Module {
     let responseText: string = '';
     try {
       res_data = await got
-        .post(options.url, { parseJson: (res: string) => JSON.parse(res) })
+        .post(options.url, {
+          searchParams: options.searchParams,
+          json: options.json,
+          parseJson: (res: string) => JSON.parse(res),
+        })
         .json();
       this.log(JSON.stringify(res_data));
       if (res_data.hasOwnProperty('candidates')) {
@@ -505,7 +509,7 @@ export default class extends Module {
       return [];
     }
 
-    const noteData: any = await this.ai.api('notes/show', { noteId: notesId });
+		const noteData = await this.ai.api<Partial<Note & { files: any[] }>>('notes/show', { noteId: notesId });
     let files: base64File[] = [];
     if (noteData !== null && noteData.hasOwnProperty('files')) {
       for (let i = 0; i < noteData.files.length; i++) {
@@ -549,7 +553,7 @@ export default class extends Module {
     } else {
       this.log('AiChat requested');
 
-      const relation: any = await this.ai?.api('users/relation', {
+			const relation = await this.ai?.api<Array<{ isFollowing?: boolean }>>('users/relation', {
         userId: msg.userId,
       });
 
@@ -571,7 +575,7 @@ export default class extends Module {
 
       if (exist != null) return false;
     } else {
-      const conversationData: any = await this.ai.api('notes/conversation', {
+			const conversationData = await this.ai.api<any[]>('notes/conversation', {
         noteId: msg.id,
       });
 
@@ -594,7 +598,7 @@ export default class extends Module {
     };
 
     if (msg.quoteId) {
-      const quotedNote: any = await this.ai.api('notes/show', {
+			const quotedNote = await this.ai.api<Partial<{ text: string }>>('notes/show', {
         noteId: msg.quoteId,
       });
       current.history = [
@@ -694,7 +698,7 @@ export default class extends Module {
   @bindThis
   private async aichatRandomTalk() {
     this.log('AiChat(randomtalk) started');
-    const tl: any = await this.ai.api('notes/timeline', { limit: 30 });
+		const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
     const interestedNotes = tl.filter(
       (note: any) =>
         note.userId !== this.ai.account.id &&
