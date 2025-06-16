@@ -8,6 +8,7 @@ import promiseRetry from 'promise-retry';
 import 藍 from './ai.js';
 import config from './config.js';
 import _log from './utils/log.js';
+import type { User } from '@/misskey/user.js';
 // import pkg from '../package.json' assert { type: 'json' };
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -71,7 +72,7 @@ promiseRetry(
           i: config.i,
         },
       })
-      .json()
+      .json<User>()
       .catch(retry);
   },
   {
@@ -79,7 +80,6 @@ promiseRetry(
   }
 )
   .then((account) => {
-    // @ts-ignore
     const acct = `@${account.username}`;
     log(chalk.green(`Account fetched successfully: ${chalk.underline(acct)}`));
 

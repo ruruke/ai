@@ -50,17 +50,17 @@ export type Meta = {
 export default class 藍 {
   public readonly version = pkg._v;
   public account: User;
-  public connection: Stream;
+  public connection!: Stream;
   public modules: Module[] = [];
   private mentionHooks: MentionHook[] = [];
   private contextHooks: { [moduleName: string]: ContextHook } = {};
   private timeoutCallbacks: { [moduleName: string]: TimeoutCallback } = {};
   public db: loki;
-  public lastSleepedAt: number;
+  public lastSleepedAt!: number;
 
-  private meta: loki.Collection<Meta>;
+  private meta!: loki.Collection<Meta>;
 
-  private contexts: loki.Collection<{
+  private contexts!: loki.Collection<{
     isChat: boolean;
     noteId?: string;
     userId?: string;
@@ -69,7 +69,7 @@ export default class 藍 {
     data?: any;
   }>;
 
-  private timers: loki.Collection<{
+  private timers!: loki.Collection<{
     id: string;
     module: string;
     insertedAt: number;
@@ -77,8 +77,8 @@ export default class 藍 {
     data?: any;
   }>;
 
-  public friends: loki.Collection<FriendDoc>;
-  public moduleData: loki.Collection<any>;
+  public friends!: loki.Collection<FriendDoc>;
+  public moduleData!: loki.Collection<any>;
 
   /**
    * 藍インスタンスを生成します
@@ -290,7 +290,7 @@ export default class 藍 {
               }
             : {
                 isChat: false,
-                noteId: msg.replyId,
+                noteId: msg.replyId === null ? undefined : msg.replyId, // Handle null replyId
               }
         );
 
@@ -442,7 +442,7 @@ export default class 藍 {
    * 投稿します
    */
   @bindThis
-  public async post(param: any) {
+  public async post(param: any): Promise<any> {
     if (
       config.postNotPublic &&
       (!param.visibility || param.visibility == 'public')
@@ -450,7 +450,7 @@ export default class 藍 {
       param.visibility = 'home';
     if (!param.visibility && config.defaultVisibility)
       param.visibility = config.defaultVisibility;
-    const res = await this.api('notes/create', param);
+    const res = await this.api<{ createdNote: any }>('notes/create', param);
     return res.createdNote;
   }
 
@@ -474,7 +474,7 @@ export default class 藍 {
    * APIを呼び出します
    */
   @bindThis
-  public api(endpoint: string, param?: any) {
+  public api<T>(endpoint: string, param?: any): Promise<T> {
     this.log(`API: ${endpoint}`);
     return got
       .post(`${config.apiUrl}/${endpoint}`, {
@@ -485,7 +485,7 @@ export default class 藍 {
           param
         ),
       })
-      .json();
+      .json<T>();
   }
 
   /**

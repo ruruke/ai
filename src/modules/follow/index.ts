@@ -130,22 +130,30 @@ export default class extends Module {
 
     try {
       const following = await this.fetchAllUsers('users/following');
-      this.log(`Fetched ${following.length} following users: ${following.map(u => UserFormatter.formatUserForLog(u)).join(', ')}`);
+      this.log(
+        `Fetched ${following.length} following users: ${following.map((u) => UserFormatter.formatUserForLog(u)).join(', ')}`
+      );
 
       const followers = await this.fetchAllUsers('users/followers');
-      this.log(`Fetched ${followers.length} followers: ${followers.map(u => UserFormatter.formatUserForLog(u)).join(', ')}`);
+      this.log(
+        `Fetched ${followers.length} followers: ${followers.map((u) => UserFormatter.formatUserForLog(u)).join(', ')}`
+      );
 
-      const followerIds = followers.map(u => u.id);
+      const followerIds = followers.map((u) => u.id);
       this.log(`Follower IDs: ${followerIds.join(', ')}`);
 
-      const usersToUnfollow = following.filter(u => {
+      const usersToUnfollow = following.filter((u) => {
         const isFollowedByBot = followerIds.includes(u.id);
         if (!isFollowedByBot) {
-          this.log(`User ${UserFormatter.formatUserForLog(u)} is followed by bot but not following back.`);
+          this.log(
+            `User ${UserFormatter.formatUserForLog(u)} is followed by bot but not following back.`
+          );
         }
         return !isFollowedByBot;
       });
-      this.log(`Found ${usersToUnfollow.length} users to unfollow: ${usersToUnfollow.map(u => UserFormatter.formatUserForLog(u)).join(', ')}`);
+      this.log(
+        `Found ${usersToUnfollow.length} users to unfollow: ${usersToUnfollow.map((u) => UserFormatter.formatUserForLog(u)).join(', ')}`
+      );
 
       if (usersToUnfollow.length === 0) {
         this.log('No users to unfollow.');
@@ -169,16 +177,21 @@ export default class extends Module {
     }
   }
 
-  private async fetchAllUsers(endpoint: 'users/following' | 'users/followers'): Promise<User[]> {
+  private async fetchAllUsers(
+    endpoint: 'users/following' | 'users/followers'
+  ): Promise<User[]> {
     let allUsers: User[] = [];
     let untilId: string | undefined = undefined;
 
     while (true) {
-      const responseItems = await this.ai.api(endpoint, {
+      const responseItems = await this.ai.api<
+        | { id: string; followee: User; follower?: never }[]
+        | { id: string; follower: User; followee?: never }
+      >(endpoint, {
         userId: this.ai.account.id,
         limit: 100,
         untilId: untilId,
-      }) as ({ id: string; followee: User; follower?: never }[] | { id: string; follower: User; followee?: never }[]);
+      });
 
       if (!responseItems || responseItems.length === 0) {
         break;
@@ -186,13 +199,19 @@ export default class extends Module {
 
       let extractedUsers: User[];
       if (endpoint === 'users/following') {
-        extractedUsers = responseItems.map(item => (item as { followee: User }).followee).filter(user => user && user.id);
-      } else { // users/followers
-        extractedUsers = responseItems.map(item => (item as { follower: User }).follower).filter(user => user && user.id);
+        extractedUsers = responseItems
+          .map((item) => (item as { followee: User }).followee)
+          .filter((user) => user && user.id);
+      } else {
+        // users/followers
+        extractedUsers = responseItems
+          .map((item) => (item as { follower: User }).follower)
+          .filter((user) => user && user.id);
       }
       allUsers = allUsers.concat(extractedUsers);
 
-      if (responseItems.length < 100) { // Optimization: if less than limit, no more pages
+      if (responseItems.length < 100) {
+        // Optimization: if less than limit, no more pages
         break;
       }
       untilId = responseItems[responseItems.length - 1].id;
