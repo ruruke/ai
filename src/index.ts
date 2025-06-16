@@ -80,7 +80,6 @@ promiseRetry(
   }
 )
   .then((account) => {
-    // @ts-ignore
     const acct = `@${account.username}`;
     log(chalk.green(`Account fetched successfully: ${chalk.underline(acct)}`));
 

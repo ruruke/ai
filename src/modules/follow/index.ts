@@ -184,13 +184,14 @@ export default class extends Module {
     let untilId: string | undefined = undefined;
 
     while (true) {
-      const responseItems = (await this.ai.api(endpoint, {
+      const responseItems = await this.ai.api<
+        | { id: string; followee: User; follower?: never }[]
+        | { id: string; follower: User; followee?: never }
+      >(endpoint, {
         userId: this.ai.account.id,
         limit: 100,
         untilId: untilId,
-      })) as
-        | { id: string; followee: User; follower?: never }[]
-        | { id: string; follower: User; followee?: never }[];
+      });
 
       if (!responseItems || responseItems.length === 0) {
         break;

@@ -29,7 +29,7 @@ export default class Message {
   public isChat: boolean;
 
   public get id(): string {
-    return this.chatMessage ? this.chatMessage.id : this.note!.id;
+    return this.chatMessage ? this.chatMessage.id : this.note?.id!;
   }
 
   public get user(): User {

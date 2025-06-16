@@ -8,6 +8,7 @@ import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
 import got from 'got';
 import loki from 'lokijs';
+import { Note } from '@/misskey/note.js';
 
 type AiChat = {
   question: string;
@@ -509,9 +510,12 @@ export default class extends Module {
       return [];
     }
 
-		const noteData = await this.ai.api<Partial<Note & { files: any[] }>>('notes/show', { noteId: notesId });
+    const noteData = await this.ai.api<Partial<Note & { files: any[] }>>(
+      'notes/show',
+      { noteId: notesId }
+    );
     let files: base64File[] = [];
-    if (noteData !== null && noteData.hasOwnProperty('files')) {
+    if (noteData && noteData.files) {
       for (let i = 0; i < noteData.files.length; i++) {
         let fileType: string | undefined;
         let fileUrl: string | undefined;
@@ -547,17 +551,32 @@ export default class extends Module {
   }
 
   @bindThis
+  private async isFollowing(userId: string): Promise<boolean> {
+    if (userId === this.ai.account.id) return true;
+    try {
+      const relation = await this.ai.api<Array<{ isFollowing?: boolean }>>(
+        'users/relation',
+        {
+          userId,
+        }
+      );
+      return relation?.[0]?.isFollowing === true;
+    } catch (error) {
+      this.log(
+        `Error checking following status for userId: ${userId}. Error: ${error}`
+      );
+      return false;
+    }
+  }
+
+  @bindThis
   private async mentionHook(msg: Message) {
     if (!msg.includes([this.name])) {
       return false;
     } else {
       this.log('AiChat requested');
 
-			const relation = await this.ai?.api<Array<{ isFollowing?: boolean }>>('users/relation', {
-        userId: msg.userId,
-      });
-
-      if (relation[0]?.isFollowing !== true) {
+      if (!(await this.isFollowing(msg.userId))) {
         this.log('The user is not following me:' + msg.userId);
         msg.reply('あなたはaichatを実行する権限がありません。');
         return false;
@@ -575,7 +594,7 @@ export default class extends Module {
 
       if (exist != null) return false;
     } else {
-			const conversationData = await this.ai.api<any[]>('notes/conversation', {
+      const conversationData = await this.ai.api<any[]>('notes/conversation', {
         noteId: msg.id,
       });
 
@@ -598,9 +617,12 @@ export default class extends Module {
     };
 
     if (msg.quoteId) {
-			const quotedNote = await this.ai.api<Partial<{ text: string }>>('notes/show', {
-        noteId: msg.quoteId,
-      });
+      const quotedNote = await this.ai.api<Partial<{ text: string }>>(
+        'notes/show',
+        {
+          noteId: msg.quoteId,
+        }
+      );
       current.history = [
         {
           role: 'user',
@@ -675,10 +697,7 @@ export default class extends Module {
       return false;
     }
 
-    const relation: any = await this.ai.api('users/relation', {
-      userId: msg.userId,
-    });
-    if (relation[0]?.isFollowing !== true) {
+    if (!(await this.isFollowing(msg.userId))) {
       this.log('The user is not following me: ' + msg.userId);
       msg.reply('あなたはaichatを実行する権限がありません。');
       return false;
@@ -698,7 +717,7 @@ export default class extends Module {
   @bindThis
   private async aichatRandomTalk() {
     this.log('AiChat(randomtalk) started');
-		const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
+    const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
     const interestedNotes = tl.filter(
       (note: any) =>
         note.userId !== this.ai.account.id &&
@@ -757,11 +776,7 @@ export default class extends Module {
 
     if (choseNote.user.isBot) return false;
 
-    const relation: any = await this.ai.api('users/relation', {
-      userId: choseNote.userId,
-    });
-
-    if (relation[0]?.isFollowing === true) {
+    if (await this.isFollowing(choseNote.userId)) {
       const current: AiChatHist = {
         postId: choseNote.id,
         createdAt: Date.now(),
@@ -833,7 +848,11 @@ export default class extends Module {
 
   @bindThis
   private async handleAiChat(exist: AiChatHist, msg: Message) {
-    let text: string | { error: boolean; errorCode: null; errorMessage: null; } | null, aiChat: AiChat;
+    let text:
+        | string
+        | { error: boolean; errorCode: null; errorMessage: null }
+        | null,
+      aiChat: AiChat;
     let prompt: string = '';
     if (config.prompt) {
       prompt = config.prompt;
