@@ -43,7 +43,7 @@
     "ws": "8.18.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.0.3"
+    "@biomejs/biome": "2.0.4"
   },
   "nodemonConfig": {
     "ignore": [
