@@ -101,6 +101,10 @@ export default class extends Module {
 
   @bindThis
   public install() {
+    if (!config.earthquakeEnable) {
+      this.log('地震警報モジュールは無効になっています。');
+      return {};
+    }
     this.log('地震警報モジュールを初期化しています...');
     this.connectionId = this.generateConnectionId();
     this.connectWebSocket();

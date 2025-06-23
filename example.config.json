@@ -59,5 +59,6 @@
 		"minPostLevel": 2
 	},
 	"weatherAutoNotePref": "東京都",
-	"weatherAutoNoteHour": 7
+	"weatherAutoNoteHour": 7,
+	"earthquakeEnable": true
 }

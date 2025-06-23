@@ -54,6 +54,7 @@ type Config = {
   };
   weatherAutoNotePref?: string;
   weatherAutoNoteHour?: number;
+  earthquakeEnable?: boolean;
 };
 
 import { readFile } from 'fs/promises';
@@ -108,6 +109,9 @@ if (config.kiatsu.minPostLevel === undefined) config.kiatsu.minPostLevel = 2;
 // 天気予報自動投稿の設定デフォルト値
 if (!config.weatherAutoNotePref) config.weatherAutoNotePref = '東京都';
 if (!config.weatherAutoNoteHour) config.weatherAutoNoteHour = 7;
+
+// 地震速報の設定デフォルト値
+if (!config.earthquakeEnable) config.earthquakeEnable = true;
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';
