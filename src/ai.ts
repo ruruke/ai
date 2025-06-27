@@ -443,7 +443,9 @@ export default class 藍 {
    */
   @bindThis
   public async post(param: any): Promise<any> {
+    // リプライの場合は元の投稿の公開範囲を継承するため、visibilityを上書きしない
     if (
+      !param.replyId &&
       config.postNotPublic &&
       (!param.visibility || param.visibility == 'public')
     )

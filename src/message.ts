@@ -24,7 +24,8 @@ export default class Message {
     text: string;
     renoteId: string;
     replyId: string;
-    visibility?: string; // Add visibility property
+    visibility?: string;
+    visibleUserIds?: string[];
   } | null;
   public isChat: boolean;
 
@@ -113,18 +114,16 @@ export default class Message {
     } else {
       const postData = {
         replyId: this.note!.id,
+        visibility: this.note!.visibility,
+        visibleUserIds: this.note!.visibleUserIds,
         text: text,
         fileIds: opts?.file ? [opts?.file.id] : undefined,
         cw: opts?.cw,
         renoteId: opts?.renote,
       };
 
-      // DM以外は普通に返信し、DMの場合はDMで返信するAdd commentMore actions
-      if (this.note?.visibility != 'specified') {
-        return await this.ai.post(postData);
-      } else {
-        return await this.ai.sendMessage(this.userId, postData);
-      }
+      // 元の投稿の公開範囲を維持して返信する
+      return await this.ai.post(postData);
     }
   }
 
