@@ -10,6 +10,7 @@ type Config = {
   reversiEnabled: boolean;
   notingEnabled: boolean;
   chartEnabled: boolean;
+  timeSignalEnabled: boolean;
   serverMonitoring: boolean;
   checkEmojisEnabled?: boolean;
   checkEmojisAtOnce?: boolean;
@@ -112,6 +113,9 @@ if (!config.weatherAutoNoteHour) config.weatherAutoNoteHour = 7;
 
 // 地震速報の設定デフォルト値
 if (!config.earthquakeEnable) config.earthquakeEnable = true;
+
+// 時刻信号の設定デフォルト値
+if (!config.timeSignalEnabled) config.timeSignalEnabled = true;
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';

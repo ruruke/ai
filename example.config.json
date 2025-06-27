@@ -10,6 +10,7 @@
 	"keywordEnabled": true,
 	"chartEnabled": true,
 	"reversiEnabled": true,
+	"timeSignalEnabled": true,
 	"serverMonitoring": true,
 	"checkEmojisEnabled": true,
 	"checkEmojisAtOnce": true,

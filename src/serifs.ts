@@ -546,6 +546,14 @@ const defaultSerifs = {
       other: '今日も一日がんばりましょう♪',
     },
   },
+
+  /**
+   * 時報
+   */
+  timeSignal: {
+    changeDate: (today: string, leftDays: number, percentage: number) =>
+      `${today} になったよ！\n今年は残り${leftDays}日、あと${percentage}%だよ！`,
+  },
 };
 
 function getParamNames(func: Function): string[] {
