@@ -394,7 +394,7 @@ export default class extends Module {
         .post(options.url, {
           searchParams: options.searchParams,
           json: options.json,
-					responseType: 'json',
+          responseType: 'json',
         })
         .json();
       this.log(JSON.stringify(res_data));
@@ -922,7 +922,10 @@ export default class extends Module {
       msg.id,
       msg.isChat
     );
-    text = (await this.genTextByGemini(aiChat, base64Files)) as (string | { error: true; errorCode: number | null; errorMessage: string | null; } | null);
+    text = (await this.genTextByGemini(aiChat, base64Files)) as
+      | string
+      | { error: true; errorCode: number | null; errorMessage: string | null }
+      | null;
 
     if (text && typeof text === 'object' && 'error' in text) {
       this.log('The result is invalid due to an HTTP error.');
