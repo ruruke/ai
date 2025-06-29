@@ -85,7 +85,7 @@ export function migrateLegacyConfig(legacyConfig: LegacyConfig): NewConfig {
         prompt: legacyConfig.autoNotePrompt,
         probability: legacyConfig.geminiAutoNoteProbability || 0.1,
         intervalMinutes: legacyConfig.autoNoteIntervalMinutes || 60,
-        disableNightPosting: legacyConfig.autoNoteDisableNightPosting !== false,
+        disableNightPosting: legacyConfig.autoNoteDisableNightPosting ?? true,
         nightHours: {
           start: 23,
           end: 5,
@@ -152,11 +152,11 @@ export function loadAndMigrateConfig(): any {
 
     // 旧形式か新形式かを判定
     const isLegacyFormat =
-      'geminiApiKey' in config ||
-      'geminiModel' in config ||
+      config.geminiApiKey !== undefined ||
+      config.geminiModel !== undefined ||
       'geminiPostMode' in config ||
-      'prompt' in config ||
-      'autoNotePrompt' in config ||
+      config.prompt !== undefined ||
+      config.autoNotePrompt !== undefined ||
       'aichatRandomTalkEnabled' in config ||
       'autoNoteDisableNightPosting' in config;
 
@@ -205,7 +205,7 @@ function applyVersionUpdate(config: any, version: number): void {
   switch (version) {
     case 1:
       // thinkingBudget設定の追加
-      if (config.gemini && !config.gemini.hasOwnProperty('thinkingBudget')) {
+      if (config.gemini && !('thinkingBudget' in config.gemini)) {
         config.gemini.thinkingBudget = -1; // デフォルト: 動的thinking
         console.log('✨ thinkingBudget設定を追加しました (v1)');
       }
@@ -214,7 +214,7 @@ function applyVersionUpdate(config: any, version: number): void {
     // 今後のバージョンをここに追加
     // case 2:
     //   // 例1: Geminiに新しい設定項目を追加
-    //   if (config.gemini && !config.gemini.hasOwnProperty('newFeature')) {
+    //   if (config.gemini && !('newFeature' in config.gemini)) {
     //     config.gemini.newFeature = true;
     //     console.log('✨ newFeature設定を追加しました (v2)');
     //   }
