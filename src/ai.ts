@@ -16,6 +16,9 @@ import type { User } from '@/misskey/user.js';
 import Stream from '@/stream.js';
 import log from '@/utils/log.js';
 import { sleep } from './utils/sleep.js';
+import DatabaseManager from '@/database/DatabaseManager.js';
+import APIClient from '@/api/APIClient.js';
+import TimerManager from '@/timer/TimerManager.js';
 // import pkg from '../package.json' assert { type: 'json' };
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -55,30 +58,16 @@ export default class 藍 {
   private mentionHooks: MentionHook[] = [];
   private contextHooks: { [moduleName: string]: ContextHook } = {};
   private timeoutCallbacks: { [moduleName: string]: TimeoutCallback } = {};
-  public db: loki;
+  private dbManager!: DatabaseManager;
+  private apiClient!: APIClient;
+  private timerManager!: TimerManager;
   public lastSleepedAt!: number;
 
-  private meta!: loki.Collection<Meta>;
-
-  private contexts!: loki.Collection<{
-    isChat: boolean;
-    noteId?: string;
-    userId?: string;
-    module: string;
-    key: string | null;
-    data?: any;
-  }>;
-
-  private timers!: loki.Collection<{
-    id: string;
-    module: string;
-    insertedAt: number;
-    delay: number;
-    data?: any;
-  }>;
-
-  public friends!: loki.Collection<FriendDoc>;
-  public moduleData!: loki.Collection<any>;
+  // DatabaseManagerからのアクセサー
+  public get db() { return this.dbManager.db; }
+  public get friends() { return this.dbManager.friends; }
+  public get moduleData() { return this.dbManager.moduleData; }
+  private get contexts() { return this.dbManager.contexts; }
 
   /**
    * 藍インスタンスを生成します
@@ -89,30 +78,20 @@ export default class 藍 {
     this.account = account;
     this.modules = modules;
 
-    let memoryDir = '.';
-    if (config.memoryDir) {
-      memoryDir = config.memoryDir;
-    }
-    const file =
-      process.env.NODE_ENV === 'test'
-        ? `${memoryDir}/test.memory.json`
-        : `${memoryDir}/memory.json`;
+    this.log('Initializing DatabaseManager...');
+    this.apiClient = new APIClient();
 
-    this.log(`Lodaing the memory from ${file}...`);
-
-    this.db = new loki(file, {
-      autoload: true,
-      autosave: true,
-      autosaveInterval: 1000,
-      autoloadCallback: (err) => {
-        if (err) {
-          this.log(chalk.red(`Failed to load the memory: ${err}`));
-        } else {
-          this.log(chalk.green('The memory loaded successfully'));
-          this.run();
-        }
+    this.dbManager = new DatabaseManager(
+      () => {
+        this.log(chalk.green('The memory loaded successfully'));
+        // TimerManagerを初期化
+        this.timerManager = new TimerManager(this.dbManager, this.timeoutCallbacks);
+        this.run();
       },
-    });
+      (err) => {
+        this.log(chalk.red(`Failed to load the memory: ${err}`));
+      }
+    );
   }
 
   @bindThis
@@ -122,27 +101,8 @@ export default class 藍 {
 
   @bindThis
   private run() {
-    //#region Init DB
-    this.meta = this.getCollection('meta', {});
-
-    this.contexts = this.getCollection('contexts', {
-      indices: ['key'],
-    });
-
-    this.timers = this.getCollection('timers', {
-      indices: ['module'],
-    });
-
-    this.friends = this.getCollection('friends', {
-      indices: ['userId'],
-    });
-
-    this.moduleData = this.getCollection('moduleData', {
-      indices: ['module'],
-    });
-    //#endregion
-
-    const meta = this.getMeta();
+    // データベース初期化はDatabaseManagerで自動実行
+    const meta = this.dbManager.getMeta();
     this.lastSleepedAt = meta.lastWakingAt;
 
     // Init stream
@@ -254,9 +214,11 @@ export default class 藍 {
       }
     });
 
-    // タイマー監視
-    this.crawleTimer();
-    setInterval(this.crawleTimer, 1000);
+    // TimerManagerにコールバックを更新
+    this.timerManager.updateTimeoutCallbacks(this.timeoutCallbacks);
+    
+    // タイマー監視開始
+    this.timerManager.startMonitoring();
 
     setInterval(this.logWaking, 10000);
 
@@ -365,18 +327,7 @@ export default class 藍 {
     }
   }
 
-  @bindThis
-  private crawleTimer() {
-    const timers = this.timers.find();
-    for (const timer of timers) {
-      // タイマーが時間切れかどうか
-      if (Date.now() - (timer.insertedAt + timer.delay) >= 0) {
-        this.log(`Timer expired: ${timer.module} ${timer.id}`);
-        this.timers.remove(timer);
-        this.timeoutCallbacks[timer.module](timer.data);
-      }
-    }
-  }
+
 
   @bindThis
   private logWaking() {
@@ -390,15 +341,7 @@ export default class 藍 {
    */
   @bindThis
   public getCollection(name: string, opts?: any): loki.Collection {
-    let collection: loki.Collection;
-
-    collection = this.db.getCollection(name);
-
-    if (collection == null) {
-      collection = this.db.addCollection(name, opts);
-    }
-
-    return collection;
+    return this.dbManager.getCollection(name, opts);
   }
 
   @bindThis
@@ -422,20 +365,7 @@ export default class 藍 {
     file: Buffer | fs.ReadStream,
     meta: { filename: string; contentType: string }
   ) {
-    const form = new FormData();
-    form.set('i', config.i);
-    form.set(
-      'file',
-      new File([file], meta.filename, { type: meta.contentType })
-    );
-
-    const res = await got
-      .post({
-        url: `${config.apiUrl}/drive/files/create`,
-        body: form,
-      })
-      .json();
-    return res;
+    return this.apiClient.upload(file, meta);
   }
 
   /**
@@ -443,33 +373,15 @@ export default class 藍 {
    */
   @bindThis
   public async post(param: any): Promise<any> {
-    // リプライの場合は元の投稿の公開範囲を継承するため、visibilityを上書きしない
-    if (
-      !param.replyId &&
-      config.postNotPublic &&
-      (!param.visibility || param.visibility == 'public')
-    )
-      param.visibility = 'home';
-    if (!param.visibility && config.defaultVisibility)
-      param.visibility = config.defaultVisibility;
-    const res = await this.api<{ createdNote: any }>('notes/create', param);
-    return res.createdNote;
+    return this.apiClient.post(param);
   }
 
   /**
-   * 指定ユーザーにチャットメッセージを送信しま
+   * 指定ユーザーにチャットメッセージを送信します
    */
   @bindThis
   public sendMessage(userId: any, param: any) {
-    return this.api(
-      'chat/messages/create-to-user',
-      Object.assign(
-        {
-          toUserId: userId,
-        },
-        param
-      )
-    );
+    return this.apiClient.sendMessage(userId, param);
   }
 
   /**
@@ -477,17 +389,7 @@ export default class 藍 {
    */
   @bindThis
   public api<T>(endpoint: string, param?: any): Promise<T> {
-    this.log(`API: ${endpoint}`);
-    return got
-      .post(`${config.apiUrl}/${endpoint}`, {
-        json: Object.assign(
-          {
-            i: config.i,
-          },
-          param
-        ),
-      })
-      .json<T>();
+    return this.apiClient.api<T>(endpoint, param);
   }
 
   /**
@@ -547,42 +449,16 @@ export default class 藍 {
    */
   @bindThis
   public setTimeoutWithPersistence(module: Module, delay: number, data?: any) {
-    const id = uuid();
-    this.timers.insertOne({
-      id: id,
-      module: module.name,
-      insertedAt: Date.now(),
-      delay: delay,
-      data: data,
-    });
-
-    this.log(`Timer persisted: ${module.name} ${id} ${delay}ms`);
+    return this.timerManager.setTimeoutWithPersistence(module, delay, data);
   }
 
   @bindThis
   public getMeta() {
-    const rec = this.meta.findOne();
-
-    if (rec) {
-      return rec;
-    } else {
-      const initial: Meta = {
-        lastWakingAt: Date.now(),
-      };
-
-      this.meta.insertOne(initial);
-      return initial;
-    }
+    return this.dbManager.getMeta();
   }
 
   @bindThis
   public setMeta(meta: Partial<Meta>) {
-    const rec = this.getMeta();
-
-    for (const [k, v] of Object.entries(meta)) {
-      rec[k] = v;
-    }
-
-    this.meta.update(rec);
+    return this.dbManager.setMeta(meta);
   }
 }
