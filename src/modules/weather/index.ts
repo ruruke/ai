@@ -68,197 +68,9 @@ interface RawWeatherData {
   error?: string; // API might return error messages
 }
 
-let prefMapCache: { data: Record<string, string>; fetchedAt: number } | null =
-  null;
-
-function weatherEmoji(telop: string): string {
-  for (const keyword in WEATHER_EMOJI_MAP) {
-    if (telop.includes(keyword)) {
-      return WEATHER_EMOJI_MAP[keyword];
-    }
-  }
-  return DEFAULT_WEATHER_EMOJI;
-}
-
-function getRainProbabilityColor(probability: string): string {
-  const probNum = parseInt(probability.replace('%', ''), 10);
-  if (isNaN(probNum)) return '777777'; // 不明な場合はグレー
-  if (probNum === 0) return '32cd32'; // 0% (緑)
-  if (probNum <= 20) return '6495ed'; // 1-20% (明るい青)
-  if (probNum <= 50) return 'ffa500'; // 21-50% (オレンジ)
-  return 'ff4500'; // 51%以上 (赤)
-}
-
-function getWeatherThemeColor(telop: string): string {
-  for (const keyword in WEATHER_THEME_COLOR_MAP) {
-    if (telop.includes(keyword)) {
-      return WEATHER_THEME_COLOR_MAP[keyword];
-    }
-  }
-  return DEFAULT_THEME_COLOR;
-}
-
-function formatWeatherToMfm(info: WeatherInfo): string {
-  const themeColor = getWeatherThemeColor(info.telop);
-  const title = `${info.place}の${info.dateLabel}の天気`;
-  const emoji = weatherEmoji(info.telop);
-
-  let body = `<center>
-${mfm.bold(mfm.color(title, themeColor))} ${emoji}
----
-今日の天気は「${mfm.bold(mfm.color(info.telop, themeColor))}」みたいですよ！
-
-`;
-
-  if (info.tempMin || info.tempMax) {
-    body += `🌡️ ${mfm.bold('気温')}
-最高: ${mfm.color(info.tempMax ?? '?', 'ff4500')}℃
-最低: ${mfm.color(info.tempMin ?? '?', '4169e1')}℃
-
-`;
-  }
-
-  if (info.rain) {
-    body += `☔ ${mfm.bold('降水確率')}
-0-6時:  ${mfm.color(info.rain.T00_06, getRainProbabilityColor(info.rain.T00_06))}
-6-12時: ${mfm.color(info.rain.T06_12, getRainProbabilityColor(info.rain.T06_12))}
-12-18時:${mfm.color(info.rain.T12_18, getRainProbabilityColor(info.rain.T12_18))}
-18-24時:${mfm.color(info.rain.T18_24, getRainProbabilityColor(info.rain.T18_24))}
-
-`;
-  }
-
-  if (info.additionalMessage) {
-    body += `${info.additionalMessage}\n\n`;
-  }
-
-  body += `---
-</center>
-`;
-
-  if (info.greeting) {
-    body += `${info.greeting}\n`;
-  }
-
-  const closingMessages = [
-    '今日も素敵な一日になりますように♪ ✨',
-    '良い一日をお過ごしくださいね！ 😊',
-    '何か良いことがありますように！ 🍀',
-    '頑張ってくださいね！応援しています！ 💪',
-    '無理せず、自分のペースでいきましょう。☕',
-  ];
-  const randomClosingMessage =
-    closingMessages[Math.floor(Math.random() * closingMessages.length)];
-  body += `${randomClosingMessage}`;
-
-  return body;
-}
-
-async function fetchPrefIdMap(): Promise<Record<string, string>> {
-  if (
-    prefMapCache &&
-    Date.now() - prefMapCache.fetchedAt < PREF_MAP_CACHE_TTL_MS
-  ) {
-    return prefMapCache.data;
-  }
-
-  try {
-    const response = await axios.get<string>(PRIMARY_AREA_XML_URL, {
-      timeout: 10000,
-    });
-    const xml = response.data;
-    const parser = new XMLParser({ ignoreAttributes: false });
-    const obj = parser.parse(xml);
-    const map: Record<string, string> = {};
-
-    // XML構造が期待通りであることを確認
-    const prefs = obj?.rss?.channel?.['ldWeather:source']?.pref;
-    if (!Array.isArray(prefs)) {
-      console.error('Unexpected XML structure in primary_area.xml:', obj);
-      throw new Error('Failed to parse prefecture data from XML.');
-    }
-
-    for (const pref of prefs) {
-      const prefName = pref['@_title'] || pref.title;
-      if (prefName && pref.city) {
-        if (
-          Array.isArray(pref.city) &&
-          pref.city.length > 0 &&
-          pref.city[0]['@_id']
-        ) {
-          map[prefName] = pref.city[0]['@_id'];
-        } else if (!Array.isArray(pref.city) && pref.city['@_id']) {
-          map[prefName] = pref.city['@_id'];
-        }
-      }
-    }
-    prefMapCache = { data: map, fetchedAt: Date.now() };
-    return map;
-  } catch (error) {
-    console.error('Failed to fetch or parse primary_area.xml:', error);
-    if (prefMapCache) return prefMapCache.data; // フォールバックとして古いキャッシュを返す
-    throw new Error(
-      'Failed to fetch prefecture ID map and no cache available.'
-    );
-  }
-}
-
-async function getAreaId(
-  place: string,
-  map?: Record<string, string>
-): Promise<string | undefined> {
-  const prefMap = map ?? (await fetchPrefIdMap());
-  let areaId = prefMap[place];
-  if (!areaId) {
-    const found = Object.entries(prefMap).find(([prefName]) =>
-      prefName.startsWith(place)
-    );
-    if (found) areaId = found[1];
-  }
-  return areaId;
-}
-
-async function fetchWeatherData(
-  areaId: string
-): Promise<RawWeatherData | null> {
-  try {
-    const url = `${FORECAST_API_URL_BASE}${areaId}`;
-    const res = await axios.get<RawWeatherData>(url, { timeout: 10000 });
-    if (res.data?.error) {
-      console.error(
-        `Weather API error for areaId ${areaId}: ${res.data.error}`
-      );
-      return null;
-    }
-    if (!res.data || !res.data.forecasts || !res.data.location) {
-      console.error('Invalid weather data received:', res.data);
-      return null;
-    }
-    return res.data;
-  } catch (error) {
-    console.error(`Failed to fetch weather data for areaId ${areaId}:`, error);
-    return null;
-  }
-}
-
-function autoNoteSerif(telop: string): string {
-  const serifMap: Record<string, string> = {
-    雷: serifs.weather.autoNote.thunder,
-    雪: serifs.weather.autoNote.snowy,
-    雨: serifs.weather.autoNote.rainy,
-    曇: serifs.weather.autoNote.cloudy,
-    晴: serifs.weather.autoNote.sunny,
-  };
-  for (const keyword in serifMap) {
-    if (telop.includes(keyword)) {
-      return serifMap[keyword];
-    }
-  }
-  return serifs.weather.autoNote.other;
-}
-
 export default class WeatherModule extends Module {
   public readonly name = 'weather';
+  private prefMapCache: { data: Record<string, string>; fetchedAt: number } | null = null;
 
   @bindThis
   public install() {
@@ -266,6 +78,188 @@ export default class WeatherModule extends Module {
     return {
       mentionHook: this.mentionHook,
     };
+  }
+
+  private weatherEmoji(telop: string): string {
+    for (const keyword in WEATHER_EMOJI_MAP) {
+      if (telop.includes(keyword)) {
+        return WEATHER_EMOJI_MAP[keyword];
+      }
+    }
+    return DEFAULT_WEATHER_EMOJI;
+  }
+
+  private getRainProbabilityColor(probability: string): string {
+    const probNum = parseInt(probability.replace('%', ''), 10);
+    if (isNaN(probNum)) return '777777'; // 不明な場合はグレー
+    if (probNum === 0) return '32cd32'; // 0% (緑)
+    if (probNum <= 20) return '6495ed'; // 1-20% (明るい青)
+    if (probNum <= 50) return 'ffa500'; // 21-50% (オレンジ)
+    return 'ff4500'; // 51%以上 (赤)
+  }
+
+  private getWeatherThemeColor(telop: string): string {
+    for (const keyword in WEATHER_THEME_COLOR_MAP) {
+      if (telop.includes(keyword)) {
+        return WEATHER_THEME_COLOR_MAP[keyword];
+      }
+    }
+    return DEFAULT_THEME_COLOR;
+  }
+
+  private formatWeatherToMfm(info: WeatherInfo): string {
+    const themeColor = this.getWeatherThemeColor(info.telop);
+    const title = `${info.place}の${info.dateLabel}の天気`;
+    const emoji = this.weatherEmoji(info.telop);
+
+    let body = `<center>
+${mfm.bold(mfm.color(title, themeColor))} ${emoji}
+---
+今日の天気は「${mfm.bold(mfm.color(info.telop, themeColor))}」みたいですよ！
+
+`;
+
+    if (info.tempMin || info.tempMax) {
+      body += `🌡️ ${mfm.bold('気温')}
+最高: ${mfm.color(info.tempMax ?? '?', 'ff4500')}℃
+最低: ${mfm.color(info.tempMin ?? '?', '4169e1')}℃
+
+`;
+    }
+
+    if (info.rain) {
+      body += `☔ ${mfm.bold('降水確率')}
+0-6時:  ${mfm.color(info.rain.T00_06, this.getRainProbabilityColor(info.rain.T00_06))}
+6-12時: ${mfm.color(info.rain.T06_12, this.getRainProbabilityColor(info.rain.T06_12))}
+12-18時:${mfm.color(info.rain.T12_18, this.getRainProbabilityColor(info.rain.T12_18))}
+18-24時:${mfm.color(info.rain.T18_24, this.getRainProbabilityColor(info.rain.T18_24))}
+
+`;
+    }
+
+    if (info.additionalMessage) {
+      body += `${info.additionalMessage}\n\n`;
+    }
+
+    body += `---
+</center>
+`;
+
+    if (info.greeting) {
+      body += `${info.greeting}\n`;
+    }
+
+    const closingMessages = [
+      '今日も素敵な一日になりますように♪ ✨',
+      '良い一日をお過ごしくださいね！ 😊',
+      '何か良いことがありますように！ 🍀',
+      '頑張ってくださいね！応援しています！ 💪',
+      '無理せず、自分のペースでいきましょう。☕',
+    ];
+    const randomClosingMessage =
+      closingMessages[Math.floor(Math.random() * closingMessages.length)];
+    body += `${randomClosingMessage}`;
+
+    return body;
+  }
+
+  private async fetchPrefIdMap(): Promise<Record<string, string>> {
+    if (
+      this.prefMapCache &&
+      Date.now() - this.prefMapCache.fetchedAt < PREF_MAP_CACHE_TTL_MS
+    ) {
+      return this.prefMapCache.data;
+    }
+
+    try {
+      const response = await axios.get<string>(PRIMARY_AREA_XML_URL, {
+        timeout: 10000,
+      });
+      const xml = response.data;
+      const parser = new XMLParser({ ignoreAttributes: false });
+      const obj = parser.parse(xml);
+      const map: Record<string, string> = {};
+
+      // XML構造が期待通りであることを確認
+      const prefs = obj?.rss?.channel?.['ldWeather:source']?.pref;
+      if (!Array.isArray(prefs)) {
+        console.error('Unexpected XML structure in primary_area.xml:', obj);
+        throw new Error('Failed to parse prefecture data from XML.');
+      }
+
+      for (const pref of prefs) {
+        const prefName = pref?.['@_title'];
+        const cities = pref?.city;
+        if (!prefName || !Array.isArray(cities)) continue;
+
+        for (const city of cities) {
+          const cityTitle = city?.['@_title'];
+          const cityId = city?.['@_id'];
+          if (!cityTitle || !cityId) continue;
+          map[cityTitle] = cityId;
+          // 県名 + 市名のパターンも追加
+          map[`${prefName}${cityTitle}`] = cityId;
+          if (cityTitle.includes('市') || cityTitle.includes('区')) {
+            map[`${prefName}${cityTitle.replace(/(市|区)$/, '')}`] = cityId;
+          }
+        }
+        // 県レベルのマッピングも追加（最初の都市を代表として）
+        if (cities.length > 0 && cities[0]?.['@_id']) {
+          map[prefName] = cities[0]['@_id'];
+        }
+      }
+
+      this.prefMapCache = { data: map, fetchedAt: Date.now() };
+      return map;
+    } catch (e) {
+      console.error('Error fetching prefecture ID map:', e);
+      throw e;
+    }
+  }
+
+  private async getAreaId(
+    place: string,
+    map?: Record<string, string>
+  ): Promise<string | undefined> {
+    const prefIdMap = map || (await this.fetchPrefIdMap());
+    return (
+      prefIdMap[place] ||
+      prefIdMap[place.replace(/(都|府|県)$/, '')] ||
+      undefined
+    );
+  }
+
+  private async fetchWeatherData(
+    areaId: string
+  ): Promise<RawWeatherData | null> {
+    try {
+      const response = await axios.get<RawWeatherData>(
+        `${FORECAST_API_URL_BASE}${areaId}`,
+        {
+          timeout: 10000,
+        }
+      );
+      return response.data;
+    } catch (e) {
+      console.error(`Error fetching weather data for areaId ${areaId}:`, e);
+      return null;
+    }
+  }
+
+  private autoNoteSerif(telop: string): string {
+    const serifMap: Record<string, string> = {
+      雷: serifs.weather.autoNote.thunder,
+      雪: serifs.weather.autoNote.snowy,
+      雨: serifs.weather.autoNote.rainy,
+      曇: serifs.weather.autoNote.cloudy,
+      晴: serifs.weather.autoNote.sunny,
+    };
+    for (const keyword in serifMap) {
+      if (telop.includes(keyword)) {
+        return serifMap[keyword];
+      }
+    }
+    return serifs.weather.autoNote.other;
   }
 
   private scheduleWeatherAutoNote() {
@@ -288,13 +282,13 @@ export default class WeatherModule extends Module {
 
   private async postWeatherNoteForAuto(place: string) {
     try {
-      const areaId = await getAreaId(place);
+      const areaId = await this.getAreaId(place);
       if (!areaId) {
         console.warn(`Area ID not found for auto-note: ${place}`);
         return;
       }
 
-      const weatherData = await fetchWeatherData(areaId);
+      const weatherData = await this.fetchWeatherData(areaId);
       if (
         !weatherData ||
         !weatherData.forecasts ||
@@ -312,14 +306,14 @@ export default class WeatherModule extends Module {
         tempMin: todayForecast.temperature?.min?.celsius ?? null,
         tempMax: todayForecast.temperature?.max?.celsius ?? null,
         rain: todayForecast.chanceOfRain ?? null,
-        greeting: autoNoteSerif(todayForecast.telop),
+        greeting: this.autoNoteSerif(todayForecast.telop),
       };
 
       if (weatherInfo.tempMin == null && weatherInfo.tempMax == null) {
         weatherInfo.additionalMessage = serifs.weather.noTemp;
       }
 
-      const text = formatWeatherToMfm(weatherInfo);
+      const text = this.formatWeatherToMfm(weatherInfo);
       this.ai.api('notes/create', { text: text });
     } catch (e) {
       console.error('Error in postWeatherNoteForAuto:', e);
@@ -343,7 +337,7 @@ export default class WeatherModule extends Module {
 
     let areaId: string | undefined;
     try {
-      areaId = await getAreaId(place);
+      areaId = await this.getAreaId(place);
     } catch (e) {
       console.error(
         `Error fetching prefIdMap for mentionHook (place: ${place}):`,
@@ -358,7 +352,7 @@ export default class WeatherModule extends Module {
       return { reaction: '❌' };
     }
 
-    const weatherData = await fetchWeatherData(areaId);
+    const weatherData = await this.fetchWeatherData(areaId);
     if (!weatherData) {
       msg.reply(serifs.weather.fetchError);
       return { reaction: '❌' };
@@ -385,9 +379,9 @@ export default class WeatherModule extends Module {
       weatherInfo.additionalMessage = serifs.weather.noTemp;
     }
 
-    const replyText = formatWeatherToMfm(weatherInfo);
+    const replyText = this.formatWeatherToMfm(weatherInfo);
     msg.reply(replyText);
-    return { reaction: weatherEmoji(forecast.telop) };
+    return { reaction: this.weatherEmoji(forecast.telop) };
   }
 
   private normalizeDateLabel(dayInput?: string): string {
