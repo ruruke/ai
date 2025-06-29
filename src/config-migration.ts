@@ -58,7 +58,7 @@ interface NewConfig {
  */
 export function migrateLegacyConfig(legacyConfig: LegacyConfig): NewConfig {
   const newConfig: NewConfig = { ...legacyConfig };
-  
+
   // 設定バージョンを設定
   newConfig.configVersion = 1;
 
@@ -138,7 +138,7 @@ export function loadAndMigrateConfig(): any {
     console.log('✅ config.yaml を読み込み中...');
     const yamlContent = fs.readFileSync(yamlPath, 'utf8');
     const config = yaml.load(yamlContent) as any;
-    
+
     // 設定の自動更新チェック
     const updatedConfig = updateConfigIfNeeded(config, yamlPath);
     return updatedConfig;
@@ -168,7 +168,9 @@ export function loadAndMigrateConfig(): any {
       const orderedConfig = {
         configVersion: migratedConfig.configVersion,
         ...Object.fromEntries(
-          Object.entries(migratedConfig).filter(([key]) => key !== 'configVersion')
+          Object.entries(migratedConfig).filter(
+            ([key]) => key !== 'configVersion'
+          )
         ),
       };
 
@@ -210,7 +212,7 @@ function applyVersionUpdate(config: any, version: number): void {
         console.log('✨ thinkingBudget設定を追加しました (v1)');
       }
       break;
-      
+
     // 今後のバージョンをここに追加
     // case 2:
     //   // 例1: Geminiに新しい設定項目を追加
@@ -243,26 +245,32 @@ function applyVersionUpdate(config: any, version: number): void {
  */
 function updateConfigIfNeeded(config: any, configPath: string): any {
   const CURRENT_CONFIG_VERSION = 1;
-  
+
   // バージョンチェック
   if (config.configVersion === CURRENT_CONFIG_VERSION) {
     return config; // 更新不要
   }
 
-  console.log(`🔄 設定ファイルを更新中... (v${config.configVersion || 0} -> v${CURRENT_CONFIG_VERSION})`);
-  
+  console.log(
+    `🔄 設定ファイルを更新中... (v${config.configVersion || 0} -> v${CURRENT_CONFIG_VERSION})`
+  );
+
   // 設定更新処理
   const updatedConfig = { ...config };
   const currentVersion = updatedConfig.configVersion || 0;
-  
+
   // バージョン別更新処理を実行
-  for (let version = currentVersion + 1; version <= CURRENT_CONFIG_VERSION; version++) {
+  for (
+    let version = currentVersion + 1;
+    version <= CURRENT_CONFIG_VERSION;
+    version++
+  ) {
     applyVersionUpdate(updatedConfig, version);
   }
-  
+
   // バージョン更新
   updatedConfig.configVersion = CURRENT_CONFIG_VERSION;
-  
+
   // configVersionを先頭に配置した新しいオブジェクトを作成
   const orderedConfig = {
     configVersion: updatedConfig.configVersion,
@@ -270,7 +278,7 @@ function updateConfigIfNeeded(config: any, configPath: string): any {
       Object.entries(updatedConfig).filter(([key]) => key !== 'configVersion')
     ),
   };
-  
+
   // ファイルを保存
   try {
     const yamlContent = yaml.dump(orderedConfig, {
@@ -279,14 +287,14 @@ function updateConfigIfNeeded(config: any, configPath: string): any {
       quotingType: '"',
       forceQuotes: false,
     });
-    
+
     const commentedYaml = addConfigComments(yamlContent);
     fs.writeFileSync(configPath, commentedYaml, 'utf8');
     console.log('✅ 設定ファイルを更新しました');
   } catch (error) {
     console.warn('⚠️ 設定ファイルの更新に失敗しました:', error);
   }
-  
+
   return updatedConfig;
 }
 

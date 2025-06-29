@@ -11,7 +11,6 @@ import chalk from 'chalk';
  * API通信の責任を担当
  */
 export default class APIClient {
-  
   @bindThis
   private log(msg: string) {
     log(`[${chalk.cyan('APIClient')}]: ${msg}`);
@@ -69,10 +68,10 @@ export default class APIClient {
    */
   @bindThis
   public sendMessage(userId: any, param: any) {
-    return this.api(
-      'chat/messages/create-to-user',
-      { toUserId: userId, ...param }
-    );
+    return this.api('chat/messages/create-to-user', {
+      toUserId: userId,
+      ...param,
+    });
   }
 
   /**

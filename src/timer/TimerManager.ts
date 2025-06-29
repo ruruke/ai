@@ -39,7 +39,7 @@ export default class TimerManager {
   public startMonitoring() {
     // 初回実行
     this.crawleTimer();
-    
+
     // 1秒間隔で監視
     this.monitoringInterval = setInterval(this.crawleTimer, 1000);
     this.log('Timer monitoring started');
@@ -68,7 +68,7 @@ export default class TimerManager {
   public setTimeoutWithPersistence(module: Module, delay: number, data?: any) {
     const id = uuid();
     const timers = this.dbManager.getCollection('timers');
-    
+
     timers.insertOne({
       id: id,
       module: module.name,
@@ -87,13 +87,13 @@ export default class TimerManager {
   private crawleTimer() {
     const timers = this.dbManager.getCollection('timers');
     const timerList = timers.find();
-    
+
     for (const timer of timerList) {
       // タイマーが時間切れかどうか
       if (Date.now() - (timer.insertedAt + timer.delay) >= 0) {
         this.log(`Timer expired: ${timer.module} ${timer.id}`);
         timers.remove(timer);
-        
+
         // コールバックが存在する場合のみ実行
         if (this.timeoutCallbacks[timer.module]) {
           this.timeoutCallbacks[timer.module](timer.data);
@@ -108,7 +108,9 @@ export default class TimerManager {
    * タイムアウトコールバックを更新します
    */
   @bindThis
-  public updateTimeoutCallbacks(timeoutCallbacks: { [moduleName: string]: TimeoutCallback }) {
+  public updateTimeoutCallbacks(timeoutCallbacks: {
+    [moduleName: string]: TimeoutCallback;
+  }) {
     this.timeoutCallbacks = timeoutCallbacks;
   }
 }

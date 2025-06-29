@@ -127,11 +127,17 @@ export default class extends Module {
   public readonly name = 'aichat';
   private aichatHist!: loki.Collection<AiChatHist>;
   private randomTalkProbability: number = DEFAULTS.RANDOMTALK_PROBABILITY;
-  private randomTalkIntervalMs: number = DEFAULTS.RANDOMTALK_INTERVAL_HOURS * HOURS_TO_MS;
+  private randomTalkIntervalMs: number =
+    DEFAULTS.RANDOMTALK_INTERVAL_HOURS * HOURS_TO_MS;
 
   // 型ガード関数
   private isApiError(value: GeminiApiResponse): value is ApiErrorResponse {
-    return value !== null && typeof value === 'object' && 'error' in value && value.error === true;
+    return (
+      value !== null &&
+      typeof value === 'object' &&
+      'error' in value &&
+      value.error === true
+    );
   }
 
   @bindThis
@@ -158,13 +164,19 @@ export default class extends Module {
       randomTalkConfig?.intervalMinutes !== undefined &&
       !Number.isNaN(randomTalkConfig.intervalMinutes)
     ) {
-      this.randomTalkIntervalMs = randomTalkConfig.intervalMinutes * MINUTES_TO_MS;
+      this.randomTalkIntervalMs =
+        randomTalkConfig.intervalMinutes * MINUTES_TO_MS;
     }
 
     this.log(
       'Gemini randomTalk enabled: ' + (randomTalkConfig?.enabled || false)
     );
-    this.log('randomTalkProbability:' + this.randomTalkProbability + ' randomTalkIntervalMs:' + this.randomTalkIntervalMs);
+    this.log(
+      'randomTalkProbability:' +
+        this.randomTalkProbability +
+        ' randomTalkIntervalMs:' +
+        this.randomTalkIntervalMs
+    );
     this.log(
       'Gemini chat grounding enabled: ' +
         (config.gemini.chat?.groundingWithGoogleSearch || false)
@@ -189,7 +201,9 @@ export default class extends Module {
           : DEFAULTS.AUTO_NOTE_INTERVAL_HOURS * HOURS_TO_MS;
       setInterval(
         this.autoNote,
-        interval + Math.random() * (DEFAULTS.AUTO_NOTE_INTERVAL_HOURS * HOURS_TO_MS / 20)
+        interval +
+          Math.random() *
+            ((DEFAULTS.AUTO_NOTE_INTERVAL_HOURS * HOURS_TO_MS) / 20)
       );
       this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
 
@@ -248,7 +262,10 @@ export default class extends Module {
   }
 
   @bindThis
-  private async genTextByGemini(aiChat: AiChat, files: Base64File[]): Promise<GeminiApiResponse> {
+  private async genTextByGemini(
+    aiChat: AiChat,
+    files: Base64File[]
+  ): Promise<GeminiApiResponse> {
     this.log('Generate Text By Gemini...');
     let parts: GeminiParts = [];
     const now = new Date().toLocaleString('ja-JP', {
@@ -552,7 +569,10 @@ export default class extends Module {
   }
 
   @bindThis
-  private async note2base64File(notesId: string, isChat: boolean): Promise<Base64File[]> {
+  private async note2base64File(
+    notesId: string,
+    isChat: boolean
+  ): Promise<Base64File[]> {
     // チャットメッセージの場合は画像取得をスキップ
     if (isChat) {
       return [];
@@ -998,7 +1018,9 @@ export default class extends Module {
         serifs.aichat.error(
           exist.type,
           (typeof text.errorCode === 'number' ? text.errorCode : null) as any,
-          (typeof text.errorMessage === 'string' ? text.errorMessage : null) as any
+          (typeof text.errorMessage === 'string'
+            ? text.errorMessage
+            : null) as any
         )
       );
       return false;

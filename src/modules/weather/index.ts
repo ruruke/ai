@@ -70,7 +70,10 @@ interface RawWeatherData {
 
 export default class WeatherModule extends Module {
   public readonly name = 'weather';
-  private prefMapCache: { data: Record<string, string>; fetchedAt: number } | null = null;
+  private prefMapCache: {
+    data: Record<string, string>;
+    fetchedAt: number;
+  } | null = null;
 
   @bindThis
   public install() {
@@ -242,7 +245,9 @@ ${mfm.bold(mfm.color(title, themeColor))} ${emoji}
       );
       const weatherData = response.data;
       if (weatherData?.error) {
-        console.error(`Weather API error for areaId ${areaId}: ${weatherData.error}`);
+        console.error(
+          `Weather API error for areaId ${areaId}: ${weatherData.error}`
+        );
         return null;
       }
       if (!weatherData?.forecasts || !weatherData?.location) {

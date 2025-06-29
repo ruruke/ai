@@ -64,10 +64,18 @@ export default class 藍 {
   public lastSleepedAt!: number;
 
   // DatabaseManagerからのアクセサー
-  public get db() { return this.dbManager.db; }
-  public get friends() { return this.dbManager.friends; }
-  public get moduleData() { return this.dbManager.moduleData; }
-  private get contexts() { return this.dbManager.contexts; }
+  public get db() {
+    return this.dbManager.db;
+  }
+  public get friends() {
+    return this.dbManager.friends;
+  }
+  public get moduleData() {
+    return this.dbManager.moduleData;
+  }
+  private get contexts() {
+    return this.dbManager.contexts;
+  }
 
   /**
    * 藍インスタンスを生成します
@@ -85,7 +93,10 @@ export default class 藍 {
       () => {
         this.log(chalk.green('The memory loaded successfully'));
         // TimerManagerを初期化
-        this.timerManager = new TimerManager(this.dbManager, this.timeoutCallbacks);
+        this.timerManager = new TimerManager(
+          this.dbManager,
+          this.timeoutCallbacks
+        );
         this.run();
       },
       (err) => {
@@ -216,7 +227,7 @@ export default class 藍 {
 
     // TimerManagerにコールバックを更新
     this.timerManager.updateTimeoutCallbacks(this.timeoutCallbacks);
-    
+
     // タイマー監視開始
     this.timerManager.startMonitoring();
 
@@ -326,8 +337,6 @@ export default class 藍 {
         break;
     }
   }
-
-
 
   @bindThis
   private logWaking() {
