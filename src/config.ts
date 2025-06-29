@@ -1,4 +1,5 @@
 type Config = {
+  configVersion?: number; // 設定ファイルバージョン
   host: string;
   serverName?: string;
   i: string;
@@ -77,7 +78,10 @@ type Config = {
 import { loadAndMigrateConfig } from './config-migration.js';
 
 // YAML/JSON自動検出・移行機能付き設定読み込み
-const config = loadAndMigrateConfig();
+export const config = loadAndMigrateConfig() as Config;
+
+// 設定バージョン管理
+if (config.configVersion === undefined) config.configVersion = 1;
 
 if (!config.aiName) config.aiName = ['藍', '三須木'];
 if (!config.followAllowedHosts) config.followAllowedHosts = [];

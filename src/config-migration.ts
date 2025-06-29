@@ -21,6 +21,7 @@ interface LegacyConfig {
 
 // 新形式の設定型定義
 interface NewConfig {
+  configVersion?: number;
   gemini?: {
     enabled?: boolean;
     apiKey?: string;
@@ -57,6 +58,9 @@ interface NewConfig {
  */
 export function migrateLegacyConfig(legacyConfig: LegacyConfig): NewConfig {
   const newConfig: NewConfig = { ...legacyConfig };
+  
+  // 設定バージョンを設定
+  newConfig.configVersion = 1;
 
   // Gemini設定の統合
   if (
@@ -131,7 +135,11 @@ export function loadAndMigrateConfig(): any {
   if (fs.existsSync(yamlPath)) {
     console.log('✅ config.yaml を読み込み中...');
     const yamlContent = fs.readFileSync(yamlPath, 'utf8');
-    return yaml.load(yamlContent);
+    const config = yaml.load(yamlContent) as any;
+    
+    // 設定の自動更新チェック
+    const updatedConfig = updateConfigIfNeeded(config, yamlPath);
+    return updatedConfig;
   }
 
   // 2. config.json が存在する場合
@@ -151,8 +159,16 @@ export function loadAndMigrateConfig(): any {
       console.log('🔄 旧形式の設定を新形式に変換中...');
       const migratedConfig = migrateLegacyConfig(config);
 
+      // configVersionを先頭に配置
+      const orderedConfig = {
+        configVersion: migratedConfig.configVersion,
+        ...Object.fromEntries(
+          Object.entries(migratedConfig).filter(([key]) => key !== 'configVersion')
+        ),
+      };
+
       // config.yaml として保存
-      const yamlContent = yaml.dump(migratedConfig, {
+      const yamlContent = yaml.dump(orderedConfig, {
         indent: 2,
         lineWidth: 120,
         quotingType: '"',
@@ -175,6 +191,60 @@ export function loadAndMigrateConfig(): any {
   throw new Error(
     '❌ 設定ファイル (config.yaml または config.json) が見つかりません'
   );
+}
+
+/**
+ * 設定ファイルの自動更新チェック
+ */
+function updateConfigIfNeeded(config: any, configPath: string): any {
+  const CURRENT_CONFIG_VERSION = 1;
+  
+  // バージョンチェック
+  if (config.configVersion === CURRENT_CONFIG_VERSION) {
+    return config; // 更新不要
+  }
+
+  console.log(`🔄 設定ファイルを更新中... (v${config.configVersion || 0} -> v${CURRENT_CONFIG_VERSION})`);
+  
+  // 設定更新処理
+  const updatedConfig = { ...config };
+  
+  // Version 1: thinkingBudget設定の追加
+  if (!updatedConfig.configVersion || updatedConfig.configVersion < 1) {
+    if (updatedConfig.gemini && !updatedConfig.gemini.hasOwnProperty('thinkingBudget')) {
+      updatedConfig.gemini.thinkingBudget = -1; // デフォルト: 動的thinking
+      console.log('✨ thinkingBudget設定を追加しました');
+    }
+  }
+  
+  // バージョン更新
+  updatedConfig.configVersion = CURRENT_CONFIG_VERSION;
+  
+  // configVersionを先頭に配置した新しいオブジェクトを作成
+  const orderedConfig = {
+    configVersion: updatedConfig.configVersion,
+    ...Object.fromEntries(
+      Object.entries(updatedConfig).filter(([key]) => key !== 'configVersion')
+    ),
+  };
+  
+  // ファイルを保存
+  try {
+    const yamlContent = yaml.dump(orderedConfig, {
+      flowLevel: -1,
+      indent: 2,
+      quotingType: '"',
+      forceQuotes: false,
+    });
+    
+    const commentedYaml = addConfigComments(yamlContent);
+    fs.writeFileSync(configPath, commentedYaml, 'utf8');
+    console.log('✅ 設定ファイルを更新しました');
+  } catch (error) {
+    console.warn('⚠️ 設定ファイルの更新に失敗しました:', error);
+  }
+  
+  return updatedConfig;
 }
 
 /**

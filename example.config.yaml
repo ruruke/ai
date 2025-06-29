@@ -5,6 +5,9 @@
 #
 # 詳細な設定については example.config.yaml を参照してください。
 
+# 設定ファイルバージョン
+configVersion: 1
+
 # Misskey サーバー設定
 host: "https://example.com"
 i: "token"
