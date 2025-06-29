@@ -126,7 +126,7 @@ export default class extends Module {
   public readonly name = 'aichat';
   private aichatHist!: loki.Collection<AiChatHist>;
   private randomTalkProbability: number = DEFAULTS.RANDOMTALK_PROBABILITY;
-  private randomTalkIntervalMinutes: number = DEFAULTS.RANDOMTALK_INTERVAL_HOURS * HOURS_TO_MS;
+  private randomTalkIntervalMs: number = DEFAULTS.RANDOMTALK_INTERVAL_HOURS * HOURS_TO_MS;
 
   // 型ガード関数
   private isApiError(value: GeminiApiResponse): value is ApiErrorResponse {
@@ -157,16 +157,13 @@ export default class extends Module {
       randomTalkConfig?.intervalMinutes !== undefined &&
       !Number.isNaN(randomTalkConfig.intervalMinutes)
     ) {
-      this.randomTalkIntervalMinutes = randomTalkConfig.intervalMinutes * MINUTES_TO_MS;
+      this.randomTalkIntervalMs = randomTalkConfig.intervalMinutes * MINUTES_TO_MS;
     }
 
     this.log(
       'Gemini randomTalk enabled: ' + (randomTalkConfig?.enabled || false)
     );
-    this.log('randomTalkProbability: ' + this.randomTalkProbability);
-    this.log(
-      'randomTalkIntervalMinutes: ' + this.randomTalkIntervalMinutes / MINUTES_TO_MS
-    );
+    this.log('randomTalkProbability:' + this.randomTalkProbability + ' randomTalkIntervalMs:' + this.randomTalkIntervalMs);
     this.log(
       'Gemini chat grounding enabled: ' +
         (config.gemini.chat?.groundingWithGoogleSearch || false)
@@ -174,10 +171,10 @@ export default class extends Module {
 
     // ランダムトークのインターバル設定
     if (randomTalkConfig?.enabled) {
-      setInterval(this.aichatRandomTalk, this.randomTalkIntervalMinutes);
+      setInterval(this.aichatRandomTalk, this.randomTalkIntervalMs);
       this.log(
         'Geminiランダムトーク機能を有効化: interval=' +
-          this.randomTalkIntervalMinutes
+          this.randomTalkIntervalMs
       );
     }
 
@@ -767,7 +764,6 @@ export default class extends Module {
   @bindThis
   private async aichatRandomTalk() {
     this.log('aichatRandomTalk called');
-    const files: Base64File[] = [];
     const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
     const interestedNotes = tl.filter(
       (note: any) =>
@@ -1000,8 +996,8 @@ export default class extends Module {
       msg.reply(
         serifs.aichat.error(
           exist.type,
-          typeof text.errorCode === 'number' ? null : text.errorCode,
-          typeof text.errorMessage === 'string' ? null : text.errorMessage
+          (typeof text.errorCode === 'number' ? text.errorCode : null) as any,
+          (typeof text.errorMessage === 'string' ? text.errorMessage : null) as any
         )
       );
       return false;
