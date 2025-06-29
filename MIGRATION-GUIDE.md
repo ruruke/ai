@@ -46,6 +46,7 @@ gemini:
   enabled: true
   apiKey: "your-api-key"
   model: "gemini-2.5-flash"
+  thinkingBudget: -1  # -1: 動的thinking, 0: 無効, 128-32768: 固定トークン数
 
   # 自動ノート投稿機能
   autoNote:

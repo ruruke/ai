@@ -18,6 +18,7 @@ type Config = {
     enabled?: boolean;
     apiKey?: string;
     model?: string;
+    thinkingBudget?: number; // -1: dynamic, 0: disabled, 128-32768: fixed budget
     autoNote?: {
       enabled?: boolean;
       prompt?: string;
@@ -90,6 +91,7 @@ if (config.postNotPublic === undefined) config.postNotPublic = false;
 if (!config.gemini) config.gemini = {};
 if (config.gemini.enabled === undefined) config.gemini.enabled = true;
 if (!config.gemini.model) config.gemini.model = 'gemini-2.5-flash';
+if (config.gemini.thinkingBudget === undefined) config.gemini.thinkingBudget = -1; // デフォルト: 動的thinking
 
 // Gemini自動ノート設定
 if (!config.gemini.autoNote) config.gemini.autoNote = {};

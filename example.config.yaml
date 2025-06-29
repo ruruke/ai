@@ -31,6 +31,12 @@ gemini:
   apiKey: "token"  # Gemini API キー
   model: "gemini-2.5-flash"  # 使用するモデル
 
+  # 思考機能設定 (Gemini 2.5のみ対応)
+  # -1: 動的thinking (モデルが自動で調整)
+  # 0: thinking無効
+  # 128-32768: 固定thinkingトークン数
+  thinkingBudget: -1
+
   # 自動ノート投稿機能 - 一定時間ごとに独り言を投稿するようになります
   autoNote:
     enabled: true

@@ -25,6 +25,7 @@ interface NewConfig {
     enabled?: boolean;
     apiKey?: string;
     model?: string;
+    thinkingBudget?: number;
     autoNote?: {
       enabled?: boolean;
       prompt?: string;
@@ -69,6 +70,7 @@ export function migrateLegacyConfig(legacyConfig: LegacyConfig): NewConfig {
       enabled: true,
       apiKey: legacyConfig.geminiApiKey,
       model: legacyConfig.geminiModel || 'gemini-2.5-flash',
+      thinkingBudget: -1, // デフォルト: 動的thinking
 
       autoNote: {
         enabled:

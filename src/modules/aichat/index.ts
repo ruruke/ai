@@ -29,6 +29,11 @@ type GeminiOptions = {
   contents?: GeminiContents[];
   systemInstruction?: GeminiSystemInstruction;
   tools?: [{}];
+  generationConfig?: {
+    thinkingConfig?: {
+      thinkingBudget?: number;
+    };
+  };
 };
 type GeminiParts = {
   inlineData?: {
@@ -383,6 +388,15 @@ export default class extends Module {
       contents: contents,
       systemInstruction: systemInstruction,
     };
+
+    // thinkingConfigの設定
+    if (config.gemini?.thinkingBudget !== undefined) {
+      geminiOptions.generationConfig = {
+        thinkingConfig: {
+          thinkingBudget: config.gemini.thinkingBudget,
+        },
+      };
+    }
 
     // YouTubeURLがある場合はグラウンディングを無効化
     if (aiChat.grounding && !hasYoutubeUrl) {
