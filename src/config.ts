@@ -89,7 +89,7 @@ if (config.postNotPublic === undefined) config.postNotPublic = false;
 // Gemini設定のデフォルト値
 if (!config.gemini) config.gemini = {};
 if (config.gemini.enabled === undefined) config.gemini.enabled = true;
-if (!config.gemini.model) config.gemini.model = 'gemini-2.0-flash';
+if (!config.gemini.model) config.gemini.model = 'gemini-2.5-flash';
 
 // Gemini自動ノート設定
 if (!config.gemini.autoNote) config.gemini.autoNote = {};

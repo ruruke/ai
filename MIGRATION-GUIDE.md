@@ -26,7 +26,7 @@
 ```json
 {
   "geminiApiKey": "your-api-key",
-  "geminiModel": "gemini-2.0-flash",
+  "geminiModel": "gemini-2.5-flash",
   "geminiPostMode": "both",
   "prompt": "チャットプロンプト",
   "autoNotePrompt": "自動ノートプロンプト",
@@ -45,7 +45,7 @@
 gemini:
   enabled: true
   apiKey: "your-api-key"
-  model: "gemini-2.0-flash"
+  model: "gemini-2.5-flash"
 
   # 自動ノート投稿機能
   autoNote:

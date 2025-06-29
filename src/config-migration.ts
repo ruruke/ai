@@ -68,7 +68,7 @@ export function migrateLegacyConfig(legacyConfig: LegacyConfig): NewConfig {
     newConfig.gemini = {
       enabled: true,
       apiKey: legacyConfig.geminiApiKey,
-      model: legacyConfig.geminiModel || 'gemini-2.0-flash',
+      model: legacyConfig.geminiModel || 'gemini-2.5-flash',
 
       autoNote: {
         enabled:
