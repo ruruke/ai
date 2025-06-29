@@ -25,20 +25,25 @@ export default class APIClient {
     file: Buffer | fs.ReadStream,
     meta: { filename: string; contentType: string }
   ) {
-    const form = new FormData();
-    form.set('i', config.i);
-    form.set(
-      'file',
-      new File([file], meta.filename, { type: meta.contentType })
-    );
+    try {
+      const form = new FormData();
+      form.set('i', config.i);
+      form.set(
+        'file',
+        new File([file], meta.filename, { type: meta.contentType })
+      );
 
-    const res = await got
-      .post({
-        url: `${config.apiUrl}/drive/files/create`,
-        body: form,
-      })
-      .json();
-    return res;
+      const res = await got
+        .post({
+          url: `${config.apiUrl}/drive/files/create`,
+          body: form,
+        })
+        .json();
+      return res;
+    } catch (error) {
+      console.error(`File upload failed: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -66,12 +71,7 @@ export default class APIClient {
   public sendMessage(userId: any, param: any) {
     return this.api(
       'chat/messages/create-to-user',
-      Object.assign(
-        {
-          toUserId: userId,
-        },
-        param
-      )
+      { toUserId: userId, ...param }
     );
   }
 
@@ -83,12 +83,7 @@ export default class APIClient {
     this.log(`API: ${endpoint}`);
     return got
       .post(`${config.apiUrl}/${endpoint}`, {
-        json: Object.assign(
-          {
-            i: config.i,
-          },
-          param
-        ),
+        json: { i: config.i, ...param },
       })
       .json<T>();
   }

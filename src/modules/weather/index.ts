@@ -213,6 +213,7 @@ ${mfm.bold(mfm.color(title, themeColor))} ${emoji}
       return map;
     } catch (e) {
       console.error('Error fetching prefecture ID map:', e);
+      if (this.prefMapCache) return this.prefMapCache.data; // Fallback to old cache
       throw e;
     }
   }
@@ -239,7 +240,16 @@ ${mfm.bold(mfm.color(title, themeColor))} ${emoji}
           timeout: 10000,
         }
       );
-      return response.data;
+      const weatherData = response.data;
+      if (weatherData?.error) {
+        console.error(`Weather API error for areaId ${areaId}: ${weatherData.error}`);
+        return null;
+      }
+      if (!weatherData?.forecasts || !weatherData?.location) {
+        console.error('Invalid weather data received:', weatherData);
+        return null;
+      }
+      return weatherData;
     } catch (e) {
       console.error(`Error fetching weather data for areaId ${areaId}:`, e);
       return null;

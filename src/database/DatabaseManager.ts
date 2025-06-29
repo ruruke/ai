@@ -116,9 +116,7 @@ export default class DatabaseManager {
   public setMeta(meta: Partial<Meta>) {
     const rec = this.getMeta();
 
-    for (const [k, v] of Object.entries(meta)) {
-      rec[k] = v;
-    }
+    Object.assign(rec, meta);
 
     this.meta.update(rec);
   }
