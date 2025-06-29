@@ -112,11 +112,7 @@ export default class extends Module {
     // Gemini全体が有効かチェック
     if (!config.gemini?.enabled) {
       this.log('Gemini機能が無効になっています');
-      return {
-        mentionHook: this.mentionHook,
-        contextHook: this.contextHook,
-        timeoutCallback: this.timeoutCallback,
-      };
+      return {};
     }
 
     // ランダムトーク設定
@@ -879,6 +875,12 @@ export default class extends Module {
 
   @bindThis
   private async handleAiChat(exist: AiChatHist, msg: Message) {
+    // チャット機能が無効かつメンションからの場合は早期リターン
+    if (exist.fromMention && !config.gemini?.chat?.enabled) {
+      this.log('チャット機能が無効のためメンションをスキップします');
+      return false;
+    }
+
     let text:
         | string
         | { error: true; errorCode: number | null; errorMessage: string | null }
