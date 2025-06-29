@@ -1,14 +1,14 @@
-import { bindThis } from '@/decorators.js';
-import Module from '@/module.js';
-import serifs from '@/serifs.js';
-import Message from '@/message.js';
-import config from '@/config.js';
-import Friend from '@/friend.js';
-import urlToBase64 from '@/utils/url2base64.js';
-import urlToJson from '@/utils/url2json.js';
 import got from 'got';
 import loki from 'lokijs';
+import config from '@/config.js';
+import { bindThis } from '@/decorators.js';
+import Friend from '@/friend.js';
+import Message from '@/message.js';
 import { Note } from '@/misskey/note.js';
+import Module from '@/module.js';
+import serifs from '@/serifs.js';
+import urlToBase64 from '@/utils/url2base64.js';
+import urlToJson from '@/utils/url2json.js';
 
 type AiChat = {
   question: string;
@@ -18,9 +18,14 @@ type AiChat = {
   fromMention: boolean;
   friendName?: string;
   grounding?: boolean;
-  history?: { role: string; content: string }[];
+  history?: ChatHistoryItem[];
 };
-type base64File = {
+
+type ChatHistoryItem = {
+  role: string;
+  content: string;
+};
+type Base64File = {
   type: string;
   base64: string;
   url?: string;
@@ -35,7 +40,7 @@ type GeminiOptions = {
     };
   };
 };
-type GeminiParts = {
+type GeminiPart = {
   inlineData?: {
     mimeType: string;
     data: string;
@@ -45,7 +50,9 @@ type GeminiParts = {
     fileUri: string;
   };
   text?: string;
-}[];
+};
+
+type GeminiParts = GeminiPart[];
 type GeminiSystemInstruction = {
   role: string;
   parts: [{ text: string }];
@@ -60,18 +67,23 @@ type AiChatHist = {
   createdAt: number;
   type: string;
   api?: string;
-  history?: {
-    role: string;
-    content: string;
-  }[];
+  history?: ChatHistoryItem[];
   friendName?: string;
   originalNoteId?: string;
   fromMention: boolean;
   grounding?: boolean;
-  youtubeUrls?: string[]; // YouTubeのURLを保存するための配列を追加
-  isChat?: boolean; // チャットメッセージかどうかを示すフラグを追加
-  chatUserId?: string; // チャットの場合、ユーザーIDを保存
+  youtubeUrls?: string[];
+  isChat?: boolean;
+  chatUserId?: string;
 };
+
+type ApiErrorResponse = {
+  error: true;
+  errorCode: number | null;
+  errorMessage: string | null;
+};
+
+type GeminiApiResponse = string | ApiErrorResponse | null;
 
 type UrlPreview = {
   title: string;
@@ -90,23 +102,36 @@ type UrlPreview = {
   url: string;
 };
 
+// API関連定数
 const TYPE_GEMINI = 'gemini';
+const GROUNDING_TARGET = 'ggg';
 const geminiModel = config.gemini?.model || 'gemini-2.5-flash';
 const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
-const GROUNDING_TARGET = 'ggg';
 
-const RANDOMTALK_DEFAULT_PROBABILITY = 0.02; // デフォルトのrandomTalk確率
-const TIMEOUT_TIME = 1000 * 60 * 60 * 0.5; // aichatの返信を監視する時間
-const RANDOMTALK_DEFAULT_INTERVAL = 1000 * 60 * 60 * 12; // デフォルトのrandomTalk間隔
+// タイミング関連定数
+const TIMEOUT_TIME = 1000 * 60 * 30; // 30分（0.5時間）
+const MINUTES_TO_MS = 60 * 1000;
+const HOURS_TO_MS = 60 * MINUTES_TO_MS;
 
-const AUTO_NOTE_DEFAULT_INTERVAL = 1000 * 60 * 360;
-const AUTO_NOTE_DEFAULT_PROBABILITY = 0.02;
+// デフォルト設定値
+const DEFAULTS = {
+  RANDOMTALK_PROBABILITY: 0.02,
+  RANDOMTALK_INTERVAL_HOURS: 12,
+  AUTO_NOTE_INTERVAL_HOURS: 6,
+  AUTO_NOTE_PROBABILITY: 0.02,
+  MAX_HISTORY_LENGTH: 10,
+} as const;
 
 export default class extends Module {
   public readonly name = 'aichat';
   private aichatHist!: loki.Collection<AiChatHist>;
-  private randomTalkProbability: number = RANDOMTALK_DEFAULT_PROBABILITY;
-  private randomTalkIntervalMinutes: number = RANDOMTALK_DEFAULT_INTERVAL;
+  private randomTalkProbability: number = DEFAULTS.RANDOMTALK_PROBABILITY;
+  private randomTalkIntervalMs: number = DEFAULTS.RANDOMTALK_INTERVAL_HOURS * HOURS_TO_MS;
+
+  // 型ガード関数
+  private isApiError(value: GeminiApiResponse): value is ApiErrorResponse {
+    return value !== null && typeof value === 'object' && 'error' in value && value.error === true;
+  }
 
   @bindThis
   public install() {
@@ -132,18 +157,13 @@ export default class extends Module {
       randomTalkConfig?.intervalMinutes !== undefined &&
       !Number.isNaN(randomTalkConfig.intervalMinutes)
     ) {
-      this.randomTalkIntervalMinutes =
-        1000 * 60 * randomTalkConfig.intervalMinutes;
+      this.randomTalkIntervalMs = randomTalkConfig.intervalMinutes * MINUTES_TO_MS;
     }
 
     this.log(
       'Gemini randomTalk enabled: ' + (randomTalkConfig?.enabled || false)
     );
-    this.log('randomTalkProbability: ' + this.randomTalkProbability);
-    this.log(
-      'randomTalkIntervalMinutes: ' +
-        this.randomTalkIntervalMinutes / (60 * 1000)
-    );
+    this.log('randomTalkProbability:' + this.randomTalkProbability + ' randomTalkIntervalMs:' + this.randomTalkIntervalMs);
     this.log(
       'Gemini chat grounding enabled: ' +
         (config.gemini.chat?.groundingWithGoogleSearch || false)
@@ -151,10 +171,10 @@ export default class extends Module {
 
     // ランダムトークのインターバル設定
     if (randomTalkConfig?.enabled) {
-      setInterval(this.aichatRandomTalk, this.randomTalkIntervalMinutes);
+      setInterval(this.aichatRandomTalk, this.randomTalkIntervalMs);
       this.log(
         'Geminiランダムトーク機能を有効化: interval=' +
-          this.randomTalkIntervalMinutes
+          this.randomTalkIntervalMs
       );
     }
 
@@ -165,15 +185,18 @@ export default class extends Module {
         autoNoteConfig.intervalMinutes !== undefined &&
         !isNaN(autoNoteConfig.intervalMinutes)
           ? 1000 * 60 * autoNoteConfig.intervalMinutes
-          : AUTO_NOTE_DEFAULT_INTERVAL;
-      setInterval(this.autoNote, interval);
+          : DEFAULTS.AUTO_NOTE_INTERVAL_HOURS * HOURS_TO_MS;
+      setInterval(
+        this.autoNote,
+        interval + Math.random() * (DEFAULTS.AUTO_NOTE_INTERVAL_HOURS * HOURS_TO_MS / 20)
+      );
       this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
 
       const probability =
         autoNoteConfig.probability !== undefined &&
         !isNaN(autoNoteConfig.probability)
           ? autoNoteConfig.probability
-          : AUTO_NOTE_DEFAULT_PROBABILITY;
+          : DEFAULTS.AUTO_NOTE_PROBABILITY;
       this.log('Gemini自動ノート投稿確率: probability=' + probability);
     }
 
@@ -224,7 +247,7 @@ export default class extends Module {
   }
 
   @bindThis
-  private async genTextByGemini(aiChat: AiChat, files: base64File[]) {
+  private async genTextByGemini(aiChat: AiChat, files: Base64File[]): Promise<GeminiApiResponse> {
     this.log('Generate Text By Gemini...');
     let parts: GeminiParts = [];
     const now = new Date().toLocaleString('ja-JP', {
@@ -528,7 +551,7 @@ export default class extends Module {
   }
 
   @bindThis
-  private async note2base64File(notesId: string, isChat: boolean) {
+  private async note2base64File(notesId: string, isChat: boolean): Promise<Base64File[]> {
     // チャットメッセージの場合は画像取得をスキップ
     if (isChat) {
       return [];
@@ -538,7 +561,7 @@ export default class extends Module {
       'notes/show',
       { noteId: notesId }
     );
-    let files: base64File[] = [];
+    let files: Base64File[] = [];
     if (noteData && noteData.files) {
       for (let i = 0; i < noteData.files.length; i++) {
         let fileType: string | undefined;
@@ -561,7 +584,7 @@ export default class extends Module {
           try {
             this.log('fileUrl:' + fileUrl);
             const file = await urlToBase64(fileUrl);
-            const base64file: base64File = { type: fileType, base64: file };
+            const base64file: Base64File = { type: fileType, base64: file };
             files.push(base64file);
           } catch (err: unknown) {
             if (err instanceof Error) {
@@ -740,7 +763,7 @@ export default class extends Module {
 
   @bindThis
   private async aichatRandomTalk() {
-    this.log('AiChat(randomtalk) started');
+    this.log('aichatRandomTalk called');
     const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
     const interestedNotes = tl.filter(
       (note: any) =>
@@ -877,7 +900,7 @@ export default class extends Module {
       fromMention: false,
     };
 
-    const base64Files: base64File[] = [];
+    const base64Files: Base64File[] = [];
     const text = await this.genTextByGemini(aiChat, base64Files);
 
     if (text) {
@@ -962,28 +985,25 @@ export default class extends Module {
       grounding: exist.grounding,
     };
 
-    const base64Files: base64File[] = await this.note2base64File(
+    const base64Files: Base64File[] = await this.note2base64File(
       msg.id,
       msg.isChat
     );
-    text = (await this.genTextByGemini(aiChat, base64Files)) as
-      | string
-      | { error: true; errorCode: number | null; errorMessage: string | null }
-      | null;
+    text = await this.genTextByGemini(aiChat, base64Files);
 
-    if (text && typeof text === 'object' && 'error' in text) {
+    if (this.isApiError(text)) {
       this.log('The result is invalid due to an HTTP error.');
       msg.reply(
         serifs.aichat.error(
           exist.type,
-          (text as any).errorCode,
-          (text as any).errorMessage
+          (typeof text.errorCode === 'number' ? text.errorCode : null) as any,
+          (typeof text.errorMessage === 'string' ? text.errorMessage : null) as any
         )
       );
       return false;
     }
 
-    if (text == null || text == '') {
+    if (text == null || text === '') {
       this.log(
         'The result is invalid. It seems that tokens and other items need to be reviewed.'
       );
@@ -991,13 +1011,15 @@ export default class extends Module {
       return false;
     }
 
-    msg.reply(serifs.aichat.post(text)).then((reply) => {
+    // この時点でtextはstringであることが保証される
+    const responseText: string = text;
+    msg.reply(serifs.aichat.post(responseText)).then((reply) => {
       if (!exist.history) {
         exist.history = [];
       }
       exist.history.push({ role: 'user', content: question });
-      exist.history.push({ role: 'model', content: text });
-      if (exist.history.length > 10) {
+      exist.history.push({ role: 'model', content: responseText });
+      if (exist.history.length > DEFAULTS.MAX_HISTORY_LENGTH) {
         exist.history.shift();
       }
 
