@@ -194,6 +194,46 @@ export function loadAndMigrateConfig(): any {
 }
 
 /**
+ * バージョン別の設定更新を適用
+ */
+function applyVersionUpdate(config: any, version: number): void {
+  switch (version) {
+    case 1:
+      // thinkingBudget設定の追加
+      if (config.gemini && !config.gemini.hasOwnProperty('thinkingBudget')) {
+        config.gemini.thinkingBudget = -1; // デフォルト: 動的thinking
+        console.log('✨ thinkingBudget設定を追加しました (v1)');
+      }
+      break;
+      
+    // 今後のバージョンをここに追加
+    // case 2:
+    //   // 例1: Geminiに新しい設定項目を追加
+    //   if (config.gemini && !config.gemini.hasOwnProperty('newFeature')) {
+    //     config.gemini.newFeature = true;
+    //     console.log('✨ newFeature設定を追加しました (v2)');
+    //   }
+    //   break;
+    //
+    // case 3:
+    //   // 例2: thinkingBudgetを単一値からオブジェクト形式に拡張
+    //   if (config.gemini && typeof config.gemini.thinkingBudget === 'number') {
+    //     const oldValue = config.gemini.thinkingBudget;
+    //     config.gemini.thinkingBudget = {
+    //       max: oldValue,
+    //       min: oldValue > 0 ? Math.floor(oldValue * 0.5) : 0
+    //     };
+    //     console.log('✨ thinkingBudgetを拡張しました (v3)');
+    //   }
+    //   break;
+      
+    default:
+      console.warn(`⚠️ 未知の設定バージョン: v${version}`);
+      break;
+  }
+}
+
+/**
  * 設定ファイルの自動更新チェック
  */
 function updateConfigIfNeeded(config: any, configPath: string): any {
@@ -208,13 +248,11 @@ function updateConfigIfNeeded(config: any, configPath: string): any {
   
   // 設定更新処理
   const updatedConfig = { ...config };
+  const currentVersion = updatedConfig.configVersion || 0;
   
-  // Version 1: thinkingBudget設定の追加
-  if (!updatedConfig.configVersion || updatedConfig.configVersion < 1) {
-    if (updatedConfig.gemini && !updatedConfig.gemini.hasOwnProperty('thinkingBudget')) {
-      updatedConfig.gemini.thinkingBudget = -1; // デフォルト: 動的thinking
-      console.log('✨ thinkingBudget設定を追加しました');
-    }
+  // バージョン別更新処理を実行
+  for (let version = currentVersion + 1; version <= CURRENT_CONFIG_VERSION; version++) {
+    applyVersionUpdate(updatedConfig, version);
   }
   
   // バージョン更新
