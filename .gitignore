@@ -1,4 +1,5 @@
 config.json
+config.yaml
 serifs.yml
 built
 node_modules

@@ -86,7 +86,7 @@ type UrlPreview = {
 };
 
 const TYPE_GEMINI = 'gemini';
-const geminiModel = config.geminiModel || 'gemini-2.0-flash-exp';
+const geminiModel = config.gemini?.model || 'gemini-2.0-flash-exp';
 const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
 const GROUNDING_TARGET = 'ggg';
 
@@ -109,55 +109,69 @@ export default class extends Module {
       indices: ['postId', 'originalNoteId'],
     });
 
+    // Gemini全体が有効かチェック
+    if (!config.gemini?.enabled) {
+      this.log('Gemini機能が無効になっています');
+      return {
+        mentionHook: this.mentionHook,
+        contextHook: this.contextHook,
+        timeoutCallback: this.timeoutCallback,
+      };
+    }
+
+    // ランダムトーク設定
+    const randomTalkConfig = config.gemini.randomTalk;
     if (
-      config.aichatRandomTalkProbability != undefined &&
-      !Number.isNaN(
-        Number.parseFloat(String(config.aichatRandomTalkProbability))
-      )
+      randomTalkConfig?.probability !== undefined &&
+      !Number.isNaN(randomTalkConfig.probability)
     ) {
-      this.randomTalkProbability = Number.parseFloat(
-        String(config.aichatRandomTalkProbability)
-      );
+      this.randomTalkProbability = randomTalkConfig.probability;
     }
     if (
-      config.aichatRandomTalkIntervalMinutes != undefined &&
-      !Number.isNaN(
-        Number.parseInt(String(config.aichatRandomTalkIntervalMinutes))
-      )
+      randomTalkConfig?.intervalMinutes !== undefined &&
+      !Number.isNaN(randomTalkConfig.intervalMinutes)
     ) {
       this.randomTalkIntervalMinutes =
-        1000 *
-        60 *
-        Number.parseInt(String(config.aichatRandomTalkIntervalMinutes));
+        1000 * 60 * randomTalkConfig.intervalMinutes;
     }
-    this.log('aichatRandomTalkEnabled:' + config.aichatRandomTalkEnabled);
-    this.log('randomTalkProbability:' + this.randomTalkProbability);
+
     this.log(
-      'randomTalkIntervalMinutes:' +
+      'Gemini randomTalk enabled: ' + (randomTalkConfig?.enabled || false)
+    );
+    this.log('randomTalkProbability: ' + this.randomTalkProbability);
+    this.log(
+      'randomTalkIntervalMinutes: ' +
         this.randomTalkIntervalMinutes / (60 * 1000)
     );
     this.log(
-      'aichatGroundingWithGoogleSearchAlwaysEnabled:' +
-        config.aichatGroundingWithGoogleSearchAlwaysEnabled
+      'Gemini chat grounding enabled: ' +
+        (config.gemini.chat?.groundingWithGoogleSearch || false)
     );
 
-    if (config.aichatRandomTalkEnabled) {
+    // ランダムトークのインターバル設定
+    if (randomTalkConfig?.enabled) {
       setInterval(this.aichatRandomTalk, this.randomTalkIntervalMinutes);
+      this.log(
+        'Geminiランダムトーク機能を有効化: interval=' +
+          this.randomTalkIntervalMinutes
+      );
     }
 
-    // ここで geminiPostMode が "auto" もしくは "both" の場合、自動ノート投稿を設定
-    if (config.geminiPostMode === 'auto' || config.geminiPostMode === 'both') {
+    // 自動ノート投稿の設定
+    const autoNoteConfig = config.gemini.autoNote;
+    if (autoNoteConfig?.enabled) {
       const interval =
-        config.autoNoteIntervalMinutes != undefined &&
-        !isNaN(parseInt(String(config.autoNoteIntervalMinutes)))
-          ? 1000 * 60 * parseInt(String(config.autoNoteIntervalMinutes))
+        autoNoteConfig.intervalMinutes !== undefined &&
+        !isNaN(autoNoteConfig.intervalMinutes)
+          ? 1000 * 60 * autoNoteConfig.intervalMinutes
           : AUTO_NOTE_DEFAULT_INTERVAL;
       setInterval(this.autoNote, interval);
       this.log('Gemini自動ノート投稿を有効化: interval=' + interval);
+
       const probability =
-        config.geminiAutoNoteProbability &&
-        !isNaN(parseFloat(String(config.geminiAutoNoteProbability)))
-          ? parseFloat(String(config.geminiAutoNoteProbability))
+        autoNoteConfig.probability !== undefined &&
+        !isNaN(autoNoteConfig.probability)
+          ? autoNoteConfig.probability
           : AUTO_NOTE_DEFAULT_PROBABILITY;
       this.log('Gemini自動ノート投稿確率: probability=' + probability);
     }
@@ -776,25 +790,31 @@ export default class extends Module {
 
     if (choseNote.user.isBot) return false;
 
-    if (await this.isFollowing(choseNote.userId)) {
-      const current: AiChatHist = {
-        postId: choseNote.id,
-        createdAt: Date.now(),
-        type: TYPE_GEMINI,
-        fromMention: false,
-      };
+    // フォロー制限設定のチェック
+    const followingOnly = config.gemini?.randomTalk?.followingOnly;
+    const isFollowingUser = await this.isFollowing(choseNote.userId);
 
-      let targetedMessage = choseNote;
-      if (choseNote.extractedText == undefined) {
-        const data = await this.ai.api('notes/show', { noteId: choseNote.id });
-        targetedMessage = new Message(this.ai, data, false);
-      }
+    if (followingOnly && !isFollowingUser) {
+      return false;
+    }
 
-      const result = await this.handleAiChat(current, targetedMessage);
+    const current: AiChatHist = {
+      postId: choseNote.id,
+      createdAt: Date.now(),
+      type: TYPE_GEMINI,
+      fromMention: false,
+    };
 
-      if (result) {
-        return { reaction: 'like' };
-      }
+    let targetedMessage = choseNote;
+    if (choseNote.extractedText == undefined) {
+      const data = await this.ai.api('notes/show', { noteId: choseNote.id });
+      targetedMessage = new Message(this.ai, data, false);
+    }
+
+    const result = await this.handleAiChat(current, targetedMessage);
+
+    if (result) {
+      return { reaction: 'like' };
     }
 
     return false;
@@ -802,22 +822,27 @@ export default class extends Module {
 
   @bindThis
   private async autoNote() {
-    if (config.autoNoteDisableNightPosting) {
+    // Gemini自動ノート機能が無効の場合はスキップ
+    if (!config.gemini?.enabled || !config.gemini?.autoNote?.enabled) {
+      return;
+    }
+
+    // 夜間投稿無効設定のチェック
+    if (config.gemini.autoNote.disableNightPosting) {
       const now = new Date();
       const hour = now.getHours();
-      if (hour >= 23 || hour < 5) {
-        this.log('深夜のため自動ノート投稿をスキップします（' + hour + '時）');
+      const nightStart = config.gemini.autoNote.nightHours?.start || 23;
+      const nightEnd = config.gemini.autoNote.nightHours?.end || 5;
+
+      if (hour >= nightStart || hour < nightEnd) {
+        this.log(`深夜のため自動ノート投稿をスキップします（${hour}時）`);
         return;
       }
     }
 
-    if (
-      config.geminiAutoNoteProbability !== undefined &&
-      !isNaN(Number.parseFloat(String(config.geminiAutoNoteProbability)))
-    ) {
-      const probability = Number.parseFloat(
-        String(config.geminiAutoNoteProbability)
-      );
+    // 確率によるスキップ判定
+    const probability = config.gemini.autoNote.probability;
+    if (probability !== undefined && !isNaN(probability)) {
       if (Math.random() >= probability) {
         this.log(
           `Gemini自動ノート投稿の確率によりスキップされました: probability=${probability}`
@@ -825,20 +850,26 @@ export default class extends Module {
         return;
       }
     }
+
     this.log('Gemini自動ノート投稿開始');
-    if (!config.geminiApiKey || !config.autoNotePrompt) {
+
+    // APIキーとプロンプトの確認
+    if (!config.gemini.apiKey || !config.gemini.autoNote.prompt) {
       this.log('APIキーまたは自動ノート用プロンプトが設定されていません。');
       return;
     }
+
     const aiChat: AiChat = {
       question: '',
-      prompt: config.autoNotePrompt,
+      prompt: config.gemini.autoNote.prompt,
       api: GEMINI_API,
-      key: config.geminiApiKey,
+      key: config.gemini.apiKey,
       fromMention: false,
     };
+
     const base64Files: base64File[] = [];
     const text = await this.genTextByGemini(aiChat, base64Files);
+
     if (text) {
       this.ai.post({ text: text + ' #aichat' });
     } else {
@@ -854,17 +885,14 @@ export default class extends Module {
         | null,
       aiChat: AiChat;
     let prompt: string = '';
-    if (config.prompt) {
-      prompt = config.prompt;
+    if (config.gemini?.chat?.prompt) {
+      prompt = config.gemini.chat.prompt;
     }
 
     if (msg.includes([GROUNDING_TARGET])) {
       exist.grounding = true;
     }
-    if (
-      exist.fromMention &&
-      config.aichatGroundingWithGoogleSearchAlwaysEnabled
-    ) {
+    if (exist.fromMention && config.gemini?.chat?.groundingWithGoogleSearch) {
       exist.grounding = true;
     }
 
@@ -902,7 +930,7 @@ export default class extends Module {
       friendName = msg.user.username;
     }
 
-    if (!config.geminiApiKey) {
+    if (!config.gemini?.apiKey) {
       msg.reply(serifs.aichat.nothing(exist.type));
       return false;
     }
@@ -911,7 +939,7 @@ export default class extends Module {
       question: question,
       prompt: prompt,
       api: GEMINI_API,
-      key: config.geminiApiKey,
+      key: config.gemini.apiKey,
       history: exist.history,
       friendName: friendName,
       fromMention: exist.fromMention,

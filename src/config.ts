@@ -14,18 +14,33 @@ type Config = {
   serverMonitoring: boolean;
   checkEmojisEnabled?: boolean;
   checkEmojisAtOnce?: boolean;
-  geminiApiKey?: string;
-  geminiModel?: string;
-  geminiPostMode?: string;
-  prompt?: string;
-  autoNotePrompt?: string;
-  autoNoteIntervalMinutes?: number;
-  autoNoteDisableNightPosting?: boolean;
-  geminiAutoNoteProbability?: number;
-  aichatRandomTalkEnabled?: boolean;
-  aichatRandomTalkProbability?: number;
-  aichatRandomTalkIntervalMinutes?: number;
-  aichatGroundingWithGoogleSearchAlwaysEnabled?: boolean;
+  gemini?: {
+    enabled?: boolean;
+    apiKey?: string;
+    model?: string;
+    autoNote?: {
+      enabled?: boolean;
+      prompt?: string;
+      probability?: number;
+      intervalMinutes?: number;
+      disableNightPosting?: boolean;
+      nightHours?: {
+        start?: number;
+        end?: number;
+      };
+    };
+    randomTalk?: {
+      enabled?: boolean;
+      probability?: number;
+      intervalMinutes?: number;
+      followingOnly?: boolean;
+    };
+    chat?: {
+      enabled?: boolean;
+      prompt?: string;
+      groundingWithGoogleSearch?: boolean;
+    };
+  };
   mecab?: string;
   mecabDic?: string;
   memoryDir?: string;
@@ -58,10 +73,10 @@ type Config = {
   earthquakeEnable?: boolean;
 };
 
-import { readFile } from 'fs/promises';
-const config = JSON.parse(
-  await readFile(new URL('../config.json', import.meta.url), 'utf8')
-);
+import { loadAndMigrateConfig } from './config-migration.js';
+
+// YAML/JSON自動検出・移行機能付き設定読み込み
+const config = loadAndMigrateConfig();
 
 if (!config.aiName) config.aiName = ['藍', '三須木'];
 if (!config.followAllowedHosts) config.followAllowedHosts = [];
@@ -70,8 +85,44 @@ if (!config.mazeEnable) config.mazeEnable = false;
 if (!config.pollEnable) config.pollEnable = false;
 if (!config.defaultVisibility) config.defaultVisibility = 'public';
 if (config.postNotPublic === undefined) config.postNotPublic = false;
-if (config.autoNoteDisableNightPosting === undefined)
-  config.autoNoteDisableNightPosting = true;
+
+// Gemini設定のデフォルト値
+if (!config.gemini) config.gemini = {};
+if (config.gemini.enabled === undefined) config.gemini.enabled = true;
+if (!config.gemini.model) config.gemini.model = 'gemini-2.0-flash';
+
+// Gemini自動ノート設定
+if (!config.gemini.autoNote) config.gemini.autoNote = {};
+if (config.gemini.autoNote.enabled === undefined)
+  config.gemini.autoNote.enabled = true;
+if (config.gemini.autoNote.probability === undefined)
+  config.gemini.autoNote.probability = 0.1;
+if (config.gemini.autoNote.intervalMinutes === undefined)
+  config.gemini.autoNote.intervalMinutes = 60;
+if (config.gemini.autoNote.disableNightPosting === undefined)
+  config.gemini.autoNote.disableNightPosting = true;
+if (!config.gemini.autoNote.nightHours) config.gemini.autoNote.nightHours = {};
+if (config.gemini.autoNote.nightHours.start === undefined)
+  config.gemini.autoNote.nightHours.start = 23;
+if (config.gemini.autoNote.nightHours.end === undefined)
+  config.gemini.autoNote.nightHours.end = 5;
+
+// Geminiランダムトーク設定
+if (!config.gemini.randomTalk) config.gemini.randomTalk = {};
+if (config.gemini.randomTalk.enabled === undefined)
+  config.gemini.randomTalk.enabled = true;
+if (config.gemini.randomTalk.probability === undefined)
+  config.gemini.randomTalk.probability = 0.2;
+if (config.gemini.randomTalk.intervalMinutes === undefined)
+  config.gemini.randomTalk.intervalMinutes = 60;
+if (config.gemini.randomTalk.followingOnly === undefined)
+  config.gemini.randomTalk.followingOnly = true;
+
+// Geminiチャット設定
+if (!config.gemini.chat) config.gemini.chat = {};
+if (config.gemini.chat.enabled === undefined) config.gemini.chat.enabled = true;
+if (config.gemini.chat.groundingWithGoogleSearch === undefined)
+  config.gemini.chat.groundingWithGoogleSearch = true;
 
 // 地震速報の設定デフォルト値
 if (!config.earthquakeWarning) config.earthquakeWarning = {};

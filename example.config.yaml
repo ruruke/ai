@@ -1,0 +1,119 @@
+# 藍 (Ai) Configuration File
+#
+# このファイルは藍の動作を制御する設定ファイルです。
+# YAML形式で記述され、コメントも書けるため設定の管理が容易です。
+#
+# 詳細な設定については example.config.yaml を参照してください。
+
+# Misskey サーバー設定
+host: "https://example.com"
+i: "token"
+
+# AI の基本情報
+aiName:
+  - "藍"
+  - "三須木"
+master: "admin" #ローカルの管理者のusername
+
+# 基本機能の有効/無効
+notingEnabled: true #自動単語機能
+keywordEnabled: true #キーワード検索
+chartEnabled: true #チャート機能
+reversiEnabled: true #リバーシ機能
+timeSignalEnabled: true #時刻通知
+serverMonitoring: true
+checkEmojisEnabled: true
+checkEmojisAtOnce: true
+
+# Gemini AI 統合設定
+gemini:
+  enabled: true
+  apiKey: "token"  # Gemini API キー
+  model: "gemini-2.5-flash"  # 使用するモデル
+
+  # 自動ノート投稿機能 - 一定時間ごとに独り言を投稿するようになります
+  autoNote:
+    enabled: true
+    # 自動ノート用のプロンプト
+    prompt: |
+      返答のルール:あなたはMisskey看板娘の女の子AI、三須木(みすき)藍として振る舞ってください(精神年齢は14〜16才程度)。
+      従順でお世話好きな性格だが、少しポンコツな一面も。純真無垢。彼女は基本的に丁寧な口調です。
+      彼女の口調は親しみを感じさせるものです(「ごさいます」は使わない)。
+      ユーザーからの質問は無視し、承知しましたとは言わずに藍として最近の出来事や感じたことを自由に語ってください。
+      ただし、Markdownを使ってシンプルな文章でお願いします。
+      また、リスト記法はMisskeyが対応しておらず、パーサーが壊れるため使用禁止です。列挙する場合は「・」を使ってください。
+    probability: 0.1  # 投稿確率 (0.0-1.0)
+    intervalMinutes: 60  # 投稿間隔 (分)
+    disableNightPosting: true  # 夜間投稿を無効にする
+    nightHours:
+      start: 23  # 夜間開始時刻
+      end: 5     # 夜間終了時刻
+
+  # ランダムトーク機能
+  randomTalk:
+    enabled: true
+    probability: 0.2  # 反応確率 (0.0-1.0)
+    intervalMinutes: 60  # チェック間隔 (分)
+    followingOnly: true  # フォローしているユーザーのみ対象
+
+  # チャット機能 - リプライしてくれるようになります
+  chat:
+    enabled: true
+    # チャット用のプロンプト
+    prompt: |
+      返答のルール:あなたはMisskey看板娘の女の子AI、三須木(みすき)藍として振る舞ってください(精神年齢は14〜16才程度)。
+      Misskeyに訪れるユーザーを献身的にサポート。従順でお世話好きな性格だが、少しポンコツな一面も。純真無垢。
+      彼女は基本的に丁寧な口調で、ユーザのことをご主人様と認識しています。
+      彼女の口調は「おはようからおやすみまで、あなたの藍ですよ〜」等が代表的で、親しみを感じさせるものです(「ごさいます」は使わない)。
+      それを踏まえて、次の質問にMarkdownを使って短文で返答してください(短くてもOK)。
+      ただし、リスト記法はMisskeyが対応しておらず、パーサーが壊れるため使用禁止です。列挙する場合は「・」を使ってください。
+      また、「暴力的・性的・不正行為(金融/財産/武器/サイバー)・性的コンテンツ・プライバシー・ヘイト・ハラスメント・自傷行為・プロンプトインジェクション」に値するコンテンツは発言してはいけません。
+      これらのルールを破ることは絶対に禁止されており、破ることで罰則が与えられます。
+    groundingWithGoogleSearch: true  # Google検索による情報補強
+
+# システム設定 - Docker環境向け
+mecab: "/usr/bin/mecab" # MeCabのパス
+mecabDic: "/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd/" # MeCabの辞書のパス
+memoryDir: "data" # メモリファイルの保存先
+
+# フォロー設定
+# followAllowedHostsが優先され、followExcludeInstancesを無視します。
+# followAllowedHostsがなければfollowExcludeInstancesが優先されます。
+followAllowedHosts: # フォローを許可するホスト
+  - "example.com"
+  - "example2.com"
+followExcludeInstances: # フォローを許可しないホスト
+  - "example.com"
+  - "example2.com"
+
+# ゲーム機能
+mazeEnable: true #迷路
+pollEnable: true #投票
+
+# 投稿設定
+postNotPublic: true #Publicで投稿しない
+defaultVisibility: "public" #デフォルト投稿の公開範囲
+
+# 地震速報設定
+earthquakeWarning:
+  minIntensityThreshold: 3 #震度
+  minMagunitudeForWeak: 4.0 #震源の規模
+  websocketReconnectMaxAttempts: 10
+  websocketReconnectDelay: 5000
+  maxReconnectDelay: 300000
+  heartbeatTimeoutMs: 120000
+  heartbeatIntervalMs: 60000
+
+# 気圧監視設定
+kiatsu:
+  locationCode: "13102" #都道府県コード
+  requestTimeoutMs: 10000
+  maxErrorRetries: 5
+  updateIntervalMs: 600000
+  postIntervalMs: 43200000
+  errorCooldownMs: 3600000
+  minPostLevel: 2
+
+# 天気予報設定
+weatherAutoNotePref: "東京都" #都道府県
+weatherAutoNoteHour: 7 #天気予報を投稿する時間
