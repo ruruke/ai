@@ -137,7 +137,15 @@ export function loadAndMigrateConfig(): any {
   if (fs.existsSync(yamlPath)) {
     console.log('✅ config.yaml を読み込み中...');
     const yamlContent = fs.readFileSync(yamlPath, 'utf8');
-    const config = yaml.load(yamlContent) as any;
+    let config = yaml.load(yamlContent) as any;
+
+    // 空のYAMLファイルの場合は新規設定として処理
+    if (config === undefined || config === null) {
+      console.log(
+        '⚙️ 空の設定ファイルを検出しました。新規設定を初期化します...'
+      );
+      config = { configVersion: 1 };
+    }
 
     // 設定の自動更新チェック
     const updatedConfig = updateConfigIfNeeded(config, yamlPath);
@@ -245,6 +253,12 @@ function applyVersionUpdate(config: any, version: number): void {
  */
 function updateConfigIfNeeded(config: any, configPath: string): any {
   const CURRENT_CONFIG_VERSION = 1;
+
+  // configがundefinedまたはnullの場合は新規設定として処理
+  if (config == null) {
+    console.log('⚙️ 新規設定を初期化します...');
+    config = { configVersion: CURRENT_CONFIG_VERSION };
+  }
 
   // バージョンチェック
   if (config.configVersion === CURRENT_CONFIG_VERSION) {
