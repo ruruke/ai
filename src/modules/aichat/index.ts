@@ -9,6 +9,7 @@ import Module from '@/module.js';
 import serifs from '@/serifs.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
+import { plain } from '@/utils/mfm.js';
 
 type AiChat = {
   question: string;
@@ -962,11 +963,11 @@ export default class extends Module {
     const friend: Friend | null = this.ai.lookupFriend(msg.userId);
     let friendName: string | undefined;
     if (friend != null && friend.name != null) {
-      friendName = friend.name;
+      friendName = plain(friend.name);
     } else if (msg.user.name) {
-      friendName = msg.user.name;
+      friendName = plain(msg.user.name);
     } else {
-      friendName = msg.user.username;
+      friendName = plain(msg.user.username);
     }
 
     if (!config.gemini?.apiKey) {
