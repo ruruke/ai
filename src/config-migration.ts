@@ -66,9 +66,11 @@ export function migrateLegacyConfig(legacyConfig: LegacyConfig): NewConfig {
   if (
     legacyConfig.geminiApiKey ||
     legacyConfig.geminiModel ||
+    legacyConfig.geminiPostMode !== undefined ||
     legacyConfig.prompt ||
     legacyConfig.autoNotePrompt ||
-    legacyConfig.aichatRandomTalkEnabled !== undefined
+    legacyConfig.aichatRandomTalkEnabled !== undefined ||
+    legacyConfig.autoNoteDisableNightPosting !== undefined
   ) {
     newConfig.gemini = {
       enabled: true,
@@ -151,9 +153,12 @@ export function loadAndMigrateConfig(): any {
     // 旧形式か新形式かを判定
     const isLegacyFormat =
       'geminiApiKey' in config ||
+      'geminiModel' in config ||
       'geminiPostMode' in config ||
+      'prompt' in config ||
       'autoNotePrompt' in config ||
-      'aichatRandomTalkEnabled' in config;
+      'aichatRandomTalkEnabled' in config ||
+      'autoNoteDisableNightPosting' in config;
 
     if (isLegacyFormat) {
       console.log('🔄 旧形式の設定を新形式に変換中...');
@@ -226,7 +231,7 @@ function applyVersionUpdate(config: any, version: number): void {
     //     console.log('✨ thinkingBudgetを拡張しました (v3)');
     //   }
     //   break;
-      
+
     default:
       console.warn(`⚠️ 未知の設定バージョン: v${version}`);
       break;
