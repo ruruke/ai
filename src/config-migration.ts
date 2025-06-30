@@ -140,31 +140,39 @@ export function loadAndMigrateConfig(): any {
     let config = yaml.load(yamlContent) as any;
 
     // 空のYAMLファイルの場合はconfig.jsonから読み込むか、デフォルト設定を使用
-    if (config === undefined || config === null || Object.keys(config).length === 0) {
-      console.log('⚙️ 空の設定ファイルを検出しました。config.jsonから設定を読み込みます...');
-      
+    if (
+      config === undefined ||
+      config === null ||
+      Object.keys(config).length === 0
+    ) {
+      console.log(
+        '⚙️ 空の設定ファイルを検出しました。config.jsonから設定を読み込みます...'
+      );
+
       if (fs.existsSync(jsonPath)) {
         console.log('📄 config.json を読み込み中...');
         const jsonContent = fs.readFileSync(jsonPath, 'utf8');
         config = JSON.parse(jsonContent);
       } else {
-        console.log('⚠️ config.json が見つかりません。デフォルト設定を使用します。');
+        console.log(
+          '⚠️ config.json が見つかりません。デフォルト設定を使用します。'
+        );
         config = {
           configVersion: 1,
-          host: 'http://localhost:3000',  // デフォルトのホスト
-          i: '',  // アクセストークン
-          aiName: ['AI'],  // AIの名前
-          master: '',  // 管理者のユーザー名
-          notingEnabled: false,  // ノート機能の有効/無効
-          keywordEnabled: false,  // キーワード機能の有効/無効
-          chartEnabled: false,  // チャート機能の有効/無効
-          reversiEnabled: false,  // リバーシ機能の有効/無効
-          serverMonitoring: false,  // サーバーモニタリングの有効/無効
-          checkEmojisEnabled: false,  // 絵文字チェックの有効/無効
-          checkEmojisAtOnce: false,  // 絵文字を一括でチェックするか
-          memoryDir: 'data'  // メモリディレクトリ
+          host: 'http://localhost:3000', // デフォルトのホスト
+          i: '', // アクセストークン
+          aiName: ['AI'], // AIの名前
+          master: '', // 管理者のユーザー名
+          notingEnabled: false, // ノート機能の有効/無効
+          keywordEnabled: false, // キーワード機能の有効/無効
+          chartEnabled: false, // チャート機能の有効/無効
+          reversiEnabled: false, // リバーシ機能の有効/無効
+          serverMonitoring: false, // サーバーモニタリングの有効/無効
+          checkEmojisEnabled: false, // 絵文字チェックの有効/無効
+          checkEmojisAtOnce: false, // 絵文字を一括でチェックするか
+          memoryDir: 'data', // メモリディレクトリ
         };
-        
+
         // デフォルト設定をYAMLとして保存
         const yamlContent = yaml.dump(config, {
           indent: 2,
