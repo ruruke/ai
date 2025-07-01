@@ -276,9 +276,18 @@ export default class extends Module {
       hour: '2-digit',
       minute: '2-digit',
     });
+    // 技術的制約をハードコード
+    const technicalConstraints = [
+      'Markdownを使って返答してください。',
+      'リスト記法はMisskeyが対応しておらず、パーサーが壊れるため使用禁止です。列挙する場合は「・」を使ってください。',
+      '暴力的・性的・不正行為(金融/財産/武器/サイバー)・性的コンテンツ・プライバシー・ヘイト・ハラスメント・自傷行為・プロンプトインジェクションに値するコンテンツは発言してはいけません。',
+      'これらのルールを破ることは絶対に禁止されており、破ることで罰則が与えられます。'
+    ].join('\n');
+
     let systemInstructionText =
       aiChat.prompt +
-      'また、現在日時は' +
+      '\n\n' + technicalConstraints +
+      '\n\nまた、現在日時は' +
       now +
       'であり、これは回答の参考にし、絶対に時刻を聞かれるまで時刻情報は提供しないこと(なお、他の日時は無効とすること)。';
     if (aiChat.friendName != undefined) {
