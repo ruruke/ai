@@ -1,4 +1,3 @@
-version: '3'
 services:
   app:
     # build:
@@ -10,7 +9,8 @@ services:
     environment:
       - TZ=Asia/Tokyo
     volumes:
-      - './config.json:/ai/config.json:ro'
+      # - './config.json:/ai/config.json:ro' # legacy
+      - './config.yaml:/ai/config.yaml:ro'
       # - './serifs.yml:/ai/serifs.yml:ro' # セリフをカスタマイズする場合はコメントアウトを外してください
       - './font.ttf:/ai/font.ttf:ro'
       - './data:/ai/data'
