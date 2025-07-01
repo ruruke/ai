@@ -30,12 +30,18 @@ export default class extends Module {
         msg.text.includes('follow me'))
     ) {
       // ユーザーの詳細情報を取得
-      const detailedUser = (await this.ai.api('users/show', {
-        userId: msg.userId,
-      })) as UserDetailed;
+      let detailedUser: UserDetailed;
+      try {
+        detailedUser = (await this.ai.api('users/show', {
+          userId: msg.userId,
+        })) as UserDetailed;
+      } catch (error) {
+        console.error('Failed to fetch user details:', error);
+        return false;
+      }
 
-      console.log('User host:', detailedUser.host);
-      console.log('User following status:', detailedUser.isFollowing);
+      // console.log('User host:', detailedUser.host);
+      // console.log('User following status:', detailedUser.isFollowing);
 
       if (
         !detailedUser.isFollowing &&
