@@ -10,19 +10,19 @@ Misskey用の日本語Botです。
 > Node.js と npm と MeCab (オプション) がインストールされている必要があります。
 
 まず適当なディレクトリに `git clone` します。
-次にそのディレクトリに `config.json` を作成します。中身は次のexampleを参照してください。
+次にそのディレクトリに `config.yaml` を作成します。中身は次のexampleを参照してください。
 （MeCabの設定、memoryDirについてはご自身の環境に合わせてください）
 
-https://github.com/lqvp/ai/blob/master/example.config.json
+https://github.com/lqvp/ai/blob/master/example.config.yaml
 
 `pnpm install` して `pnpm build` して `pnpm start` すれば起動できます
 
 ## Dockerで動かす
 まず適当なディレクトリに `git clone` します。
-次にそのディレクトリに `config.json` を作成します。中身は次のexampleを参照してください。
+次にそのディレクトリに `config.yaml` を作成します。中身は次のexampleを参照してください。
 （MeCabの設定、memoryDirについては触らないでください）
 
-https://github.com/lqvp/ai/blob/master/example.config.json
+https://github.com/lqvp/ai/blob/master/example.config.yaml
 
 `docker-compose build` して `docker-compose up` すれば起動できます。
 `docker-compose.yml` の `enable_mecab` を `0` にすると、MeCabをインストールしないようにもできます。（メモリが少ない環境など）
