@@ -1,14 +1,3 @@
-export type Note = {
-  id: string;
-  userId: string;
-  text: string | null;
-  reply: any | null;
-  poll?: {
-    choices: {
-      votes: number;
-      text: string;
-    }[];
-    expiredAfter: number;
-    multiple: boolean;
-  } | null;
-};
+import * as Misskey from 'misskey-js';
+
+export type Note = Misskey.entities.Note;

@@ -2,7 +2,7 @@ import { bindThis } from '@/decorators.js';
 import Module from '@/module.js';
 import Message from '@/message.js';
 import config from '@/config.js';
-import { User } from '@/misskey/user.js';
+import { User, UserDetailed } from '@/misskey/user.js';
 import { UserFormatter } from '@/utils/user-formatter.js';
 
 export default class extends Module {
@@ -20,8 +20,6 @@ export default class extends Module {
 
   @bindThis
   private async mentionHook(msg: Message) {
-    console.log('User host:', msg.user.host);
-    console.log('User following status:', msg.user.isFollowing);
     const allowedHosts = config.followAllowedHosts || [];
     const followExcludeInstances = config.followExcludeInstances || [];
 
@@ -31,12 +29,26 @@ export default class extends Module {
         msg.text.includes('フォロバ') ||
         msg.text.includes('follow me'))
     ) {
+      // ユーザーの詳細情報を取得
+      let detailedUser: UserDetailed;
+      try {
+        detailedUser = (await this.ai.api('users/show', {
+          userId: msg.userId,
+        })) as UserDetailed;
+      } catch (error) {
+        console.error('Failed to fetch user details:', error);
+        return false;
+      }
+
+      // console.log('User host:', detailedUser.host);
+      // console.log('User following status:', detailedUser.isFollowing);
+
       if (
-        !msg.user.isFollowing &&
-        (msg.user.host == null ||
-          msg.user.host === '' ||
+        !detailedUser.isFollowing &&
+        (detailedUser.host == null ||
+          detailedUser.host === '' ||
           this.shouldFollowUser(
-            msg.user.host,
+            detailedUser.host,
             allowedHosts,
             followExcludeInstances
           ))
@@ -52,7 +64,7 @@ export default class extends Module {
           console.error('Failed to follow user:', error);
           return false;
         }
-      } else if (!msg.user.isFollowing) {
+      } else if (!detailedUser.isFollowing) {
         await msg.reply('どなたさまですか？');
         return {
           reaction: msg.friend.love >= 0 ? 'hmm' : null,
