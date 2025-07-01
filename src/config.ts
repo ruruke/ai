@@ -73,6 +73,11 @@ type Config = {
   weatherAutoNotePref?: string;
   weatherAutoNoteHour?: number;
   earthquakeEnable?: boolean;
+  imagen?: {
+    enabled?: boolean;
+    apiKey?: string;
+    model?: string;
+  };
 };
 
 import { loadAndMigrateConfig } from './config-migration.js';

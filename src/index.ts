@@ -43,6 +43,7 @@ import AiChatModule from './modules/aichat/index.js';
 import KiatsuModule from './modules/kiatsu/index.js';
 import WeatherModule from './modules/weather/index.js';
 import TimeSignalModule from './modules/time-signal/index.js';
+import ImagenModule from './modules/imagen/index.js';
 
 console.log('   __    ____  _____  ___ ');
 console.log('  /__\\  (_  _)(  _  )/ __)');
@@ -117,6 +118,7 @@ promiseRetry(
       new KiatsuModule(),
       new WeatherModule(),
       new TimeSignalModule(),
+      new ImagenModule(),
     ]);
   })
   .catch((e) => {

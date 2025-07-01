@@ -6,7 +6,7 @@
 # 詳細な設定については example.config.yaml を参照してください。
 
 # 設定ファイルバージョン
-configVersion: 1
+configVersion: 2
 
 # Misskey サーバー設定
 host: "https://example.com"
@@ -121,3 +121,9 @@ kiatsu:
 # 天気予報設定
 weatherAutoNotePref: "東京都" #都道府県
 weatherAutoNoteHour: 7 #天気予報を投稿する時間
+
+# Imagen設定
+imagen:
+  enabled: true #Imagen機能を有効化
+  apiKey: "token" #Imagen APIキー
+  model: "imagen-3.0-generate-002" #使用するモデル imagen-4.0-ultra-generate-preview-06-06が一番強い
