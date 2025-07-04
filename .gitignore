@@ -1,6 +1,5 @@
-config.json
-config.yaml
-serifs.yml
+config.toml
+serifs.toml
 built
 node_modules
 memory.json

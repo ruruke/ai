@@ -80,13 +80,10 @@ type Config = {
   };
 };
 
-import { loadAndMigrateConfig } from './config-migration.js';
+import { performStartupConfigCheck } from './config-updater.js';
 
-// YAML/JSON自動検出・移行機能付き設定読み込み
-export const config = loadAndMigrateConfig() as Config;
-
-// 設定バージョン管理
-if (config.configVersion === undefined) config.configVersion = 1;
+// 起動時設定チェックと自動更新を実行
+export const config = performStartupConfigCheck();
 
 config.wsUrl = config.host.replace('http', 'ws');
 config.apiUrl = config.host + '/api';

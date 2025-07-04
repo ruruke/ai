@@ -1,7 +1,7 @@
 // せりふ
 
 import { readFile } from 'fs/promises';
-import yaml from 'js-yaml';
+import * as TOML from '@iarna/toml';
 
 const defaultSerifs = {
   core: {
@@ -620,15 +620,15 @@ function deepMerge(target: any, source: any, parentKey: string = ''): any {
 let computedSerifs = { ...defaultSerifs };
 try {
   const fileContent = await readFile(
-    new URL('../serifs.yml', import.meta.url),
+    new URL('../serifs.toml', import.meta.url),
     'utf8'
   );
-  const loadedSerifs = yaml.load(fileContent);
+  const loadedSerifs = TOML.parse(fileContent);
   if (loadedSerifs && typeof loadedSerifs === 'object') {
     computedSerifs = deepMerge(computedSerifs, loadedSerifs);
   }
 } catch (e) {
-  // Fallback to defaultSerifs if serifs.yml is missing or invalid
+  // Fallback to defaultSerifs if serifs.toml is missing or invalid
 }
 
 export default computedSerifs;
