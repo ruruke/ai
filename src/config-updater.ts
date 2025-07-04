@@ -34,7 +34,7 @@ function findMissingKeys(
 ): string[] {
   const missingKeys: string[] = [];
 
-  for (const key in templateObj) {
+  for (const key of Object.keys(templateObj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
 
     if (!(key in userObj)) {
