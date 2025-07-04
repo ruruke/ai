@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>藍設定ファイル変換ツール - JSON/YAML → TOML</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .input-section, .output-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            color: #3498db;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: 600;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 5px;
+        }
+        
+        .format-selector {
+            margin-bottom: 15px;
+        }
+        
+        .format-selector label {
+            display: inline-block;
+            margin-right: 20px;
+            cursor: pointer;
+            padding: 8px 16px;
+            background: #ecf0f1;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        
+        .format-selector input[type="radio"] {
+            margin-right: 8px;
+        }
+        
+        .format-selector label:has(input:checked) {
+            background: #3498db;
+            color: white;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 300px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        
+        textarea:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        .button-group {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .clear-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .clear-btn:hover {
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        
+        .copy-btn {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .copy-btn:hover {
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #f44336;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-box h3 {
+            color: #1976d2;
+            margin-top: 0;
+        }
+        
+        .warning {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .example-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .example-card h4 {
+            color: #495057;
+            margin-top: 0;
+        }
+        
+        .example-code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .examples {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 藍設定ファイル変換ツール</h1>
+        <p class="subtitle">JSON/YAML形式の設定ファイルを最新のTOML形式に変換します</p>
+        
+        <div class="info-box">
+            <h3>🎯 このツールについて</h3>
+            <p>藍の設定ファイルが最新のTOML形式に移行されました。このツールを使用して、古いJSON形式やYAML形式の設定ファイルを新しいTOML形式に簡単に変換できます。</p>
+            <ul>
+                <li><strong>JSON → TOML:</strong> 古い分散設定を新しい統一構造に変換</li>
+                <li><strong>YAML → TOML:</strong> YAML形式をTOML形式に変換</li>
+                <li><strong>完全ローカル処理:</strong> データはブラウザ内で処理され、サーバーに送信されません</li>
+            </ul>
+        </div>
+        
+        <div class="input-section">
+            <h2 class="section-title">📥 入力設定ファイル</h2>
+            
+            <div class="format-selector">
+                <select id="inputFormat">
+                <option value="auto">自動検出</option>
+                <option value="json">JSON形式</option>
+                <option value="yaml">YAML形式</option>
+            </select>
+            </div>
+            
+            <textarea id="inputConfig" placeholder="ここに変換したい設定ファイルの内容を貼り付けてください..."></textarea>
+        </div>
+        
+        <div class="button-group">
+            <button onclick="convertToTOML()" class="convert-btn">TOML形式に変換</button>
+            <button class="clear-btn" onclick="clearAll()">🗑️ クリア</button>
+        </div>
+        
+        <div class="output-section">
+            <h2 class="section-title">📤 変換結果 (TOML形式)</h2>
+            <textarea id="outputConfig" readonly placeholder="変換結果がここに表示されます..."></textarea>
+            <div class="button-group">
+                <button class="copy-btn" onclick="copyToClipboard()">📋 クリップボードにコピー</button>
+                <button onclick="downloadTOML()">💾 ファイルとしてダウンロード</button>
+            </div>
+        </div>
+        
+        <div id="messages"></div>
+    </div>
+    
+    <div class="container">
+        <h2 class="section-title">📋 設定例</h2>
+        <div class="examples">
+            <div class="example-card">
+                <h4>JSON形式 (旧形式)</h4>
+                <div class="example-code">{
+  "host": "https://example.com",
+  "i": "your-token",
+  "geminiApiKey": "your-gemini-key",
+  "geminiModel": "gemini-2.5-flash",
+  "prompt": "チャットプロンプト..."
+}</div>
+            </div>
+            
+            <div class="example-card">
+                <h4>YAML形式</h4>
+                <div class="example-code">host: "https://example.com"
+i: "your-token"
+gemini:
+  enabled: true
+  apiKey: "your-gemini-key"
+  model: "gemini-2.5-flash"</div>
+            </div>
+            
+            <div class="example-card">
+                <h4>TOML形式 (新形式)</h4>
+                <div class="example-code">host = "https://example.com"
+i = "your-token"
+
+[gemini]
+enabled = true
+apiKey = "your-gemini-key"
+model = "gemini-2.5-flash"</div>
+            </div>
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ 注意:</strong> 変換後は設定内容を確認し、必要に応じて調整してください。特にAPIキーなどの秘密情報は適切に設定してください。
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <script>
+        // TOML文字列生成関数
+        function generateTOML(obj, parentKey = '') {
+            let toml = '';
+            
+            // まず、プリミティブ値と配列を処理
+            for (const [key, value] of Object.entries(obj)) {
+                if (value === null || value === undefined) continue;
+                
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                    continue; // オブジェクトは後で処理
+                }
+                
+                const fullKey = parentKey ? `${parentKey}.${key}` : key;
+                toml += formatTOMLValue(key, value) + '\n';
+            }
+            
+            // セクション間の空行
+            if (toml && Object.entries(obj).some(([_, value]) => typeof value === 'object' && !Array.isArray(value))) {
+                toml += '\n';
+            }
+            
+            // オブジェクト（セクション）を処理
+            for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+                    const sectionKey = parentKey ? `${parentKey}.${key}` : key;
+                    toml += `[${sectionKey}]\n`;
+                    toml += generateTOML(value, sectionKey);
+                    toml += '\n';
+                }
+            }
+            
+            return toml;
+        }
+        
+        function formatTOMLValue(key, value) {
+            if (typeof value === 'string') {
+                // 改行を含む文字列は三重引用符で囲む
+                if (value.includes('\n')) {
+                    return `${key} = """\n${value}\n"""`;
+                }
+                return `${key} = "${value.replace(/"/g, '\\"')}"`;
+            } else if (typeof value === 'boolean') {
+                return `${key} = ${value}`;
+            } else if (typeof value === 'number') {
+                return `${key} = ${value}`;
+            } else if (Array.isArray(value)) {
+                const formattedArray = value.map(item => 
+                    typeof item === 'string' ? `"${item.replace(/"/g, '\\"')}"` : item
+                ).join(', ');
+                return `${key} = [${formattedArray}]`;
+            }
+            return `${key} = ${value}`;
+        }
+        
+        // JSON形式を新しい構造に変換
+        function migrateFromJSON(config) {
+            const newConfig = { ...config };
+            
+            // Gemini設定の統合
+            if ('geminiApiKey' in config || 'geminiModel' in config) {
+                newConfig.gemini = {
+                    enabled: true,
+                    ...(config.geminiApiKey && { apiKey: config.geminiApiKey }),
+                    ...(config.geminiModel && { model: config.geminiModel }),
+                };
+                
+                // thinkingBudgetのデフォルト値
+                if (!('thinkingBudget' in newConfig.gemini)) {
+                    newConfig.gemini.thinkingBudget = -1;
+                }
+                
+                // 自動ノート設定の統合
+                if (config.autoNotePrompt || config.autoNoteIntervalMinutes !== undefined || 
+                    config.autoNoteDisableNightPosting !== undefined || config.geminiAutoNoteProbability !== undefined) {
+                    newConfig.gemini.autoNote = {
+                        enabled: true,
+                        ...(config.autoNotePrompt && { prompt: config.autoNotePrompt }),
+                        ...(config.geminiAutoNoteProbability !== undefined && { probability: config.geminiAutoNoteProbability }),
+                        ...(config.autoNoteIntervalMinutes !== undefined && { intervalMinutes: config.autoNoteIntervalMinutes }),
+                        ...(config.autoNoteDisableNightPosting !== undefined && { disableNightPosting: config.autoNoteDisableNightPosting }),
+                    };
+                    
+                    // 夜間時間設定
+                    newConfig.gemini.autoNote.nightHours = {
+                        start: 23,
+                        end: 5
+                    };
+                }
+                
+                // ランダムトーク設定の統合
+                if (config.aichatRandomTalkEnabled !== undefined || config.aichatRandomTalkProbability !== undefined || 
+                    config.aichatRandomTalkIntervalMinutes !== undefined) {
+                    newConfig.gemini.randomTalk = {
+                        enabled: config.aichatRandomTalkEnabled ?? true,
+                        ...(config.aichatRandomTalkProbability !== undefined && { probability: config.aichatRandomTalkProbability }),
+                        ...(config.aichatRandomTalkIntervalMinutes !== undefined && { intervalMinutes: config.aichatRandomTalkIntervalMinutes }),
+                        followingOnly: true
+                    };
+                }
+                
+                // チャット設定の統合
+                if (config.prompt || config.aichatGroundingWithGoogleSearchAlwaysEnabled !== undefined) {
+                    newConfig.gemini.chat = {
+                        enabled: true,
+                        ...(config.prompt && { prompt: config.prompt }),
+                        ...(config.aichatGroundingWithGoogleSearchAlwaysEnabled !== undefined && 
+                            { groundingWithGoogleSearch: config.aichatGroundingWithGoogleSearchAlwaysEnabled })
+                    };
+                }
+                
+                // 古い設定項目を削除
+                delete newConfig.geminiApiKey;
+                delete newConfig.geminiModel;
+                delete newConfig.geminiPostMode;
+                delete newConfig.prompt;
+                delete newConfig.autoNotePrompt;
+                delete newConfig.autoNoteIntervalMinutes;
+                delete newConfig.autoNoteDisableNightPosting;
+                delete newConfig.geminiAutoNoteProbability;
+                delete newConfig.aichatRandomTalkEnabled;
+                delete newConfig.aichatRandomTalkProbability;
+                delete newConfig.aichatRandomTalkIntervalMinutes;
+                delete newConfig.aichatGroundingWithGoogleSearchAlwaysEnabled;
+            }
+            
+            return newConfig;
+        }
+        
+        function convertToTOML() {
+            const input = document.getElementById('inputConfig').value.trim();
+            let format = document.getElementById('inputFormat').value;
+            
+            if (!input) {
+                showMessage('入力テキストが空です。', 'error');
+                return;
+            }
+
+            try {
+                // 自動検出機能
+                if (format === 'auto') {
+                    format = detectFormat(input);
+                    document.getElementById('inputFormat').value = format;
+                    showMessage(`形式を自動検出しました: ${format.toUpperCase()}`, 'info');
+                }
+                
+                let configObj;
+                
+                if (format === 'json') {
+                    configObj = JSON.parse(input);
+                } else if (format === 'yaml') {
+                    configObj = jsyaml.load(input);
+                    // configVersionを削除
+                    if (configObj && configObj.configVersion !== undefined) {
+                        delete configObj.configVersion;
+                    }
+                } else {
+                    throw new Error('サポートされていない形式です');
+                }
+                
+                // 移行処理と不足項目の補完
+                configObj = migrateAndCompleteConfig(configObj, format);
+                
+                const tomlString = convertToTOMLString(configObj);
+                document.getElementById('outputConfig').value = tomlString;
+                showMessage('変換が完了しました！', 'success');
+                
+            } catch (error) {
+                showMessage(`変換エラー: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        function detectFormat(input) {
+            // JSON形式の検出
+            input = input.trim();
+            if (input.startsWith('{') && input.endsWith('}')) {
+                try {
+                    JSON.parse(input);
+                    return 'json';
+                } catch (e) {
+                    // JSONパースに失敗した場合は次の形式をチェック
+                }
+            }
+            
+            // YAML形式の検出（インデントやコロンの存在をチェック）
+            if (input.includes(':') && (input.includes('\n  ') || input.includes('\n\t') || !input.startsWith('{'))) {
+                return 'yaml';
+            }
+            
+            throw new Error('形式を自動検出できませんでした。手動で形式を選択してください。');
+        }
+        
+        function migrateAndCompleteConfig(configObj, format) {
+            // JSON形式からの移行処理
+            if (format === 'json') {
+                configObj = migrateFromJSON(configObj);
+            }
+            
+            // デフォルト設定で補完（example.config.tomlと同じ順序）
+            const completeConfig = {
+                // 基本設定
+                host: configObj.host || "https://example.com",
+                i: configObj.i || "token",
+                aiName: configObj.aiName || ["藍", "三須木"],
+                master: configObj.master || "admin",
+                
+                // 基本機能
+                notingEnabled: configObj.notingEnabled !== undefined ? configObj.notingEnabled : true,
+                keywordEnabled: configObj.keywordEnabled !== undefined ? configObj.keywordEnabled : true,
+                chartEnabled: configObj.chartEnabled !== undefined ? configObj.chartEnabled : true,
+                reversiEnabled: configObj.reversiEnabled !== undefined ? configObj.reversiEnabled : true,
+                timeSignalEnabled: configObj.timeSignalEnabled !== undefined ? configObj.timeSignalEnabled : true,
+                serverMonitoring: configObj.serverMonitoring !== undefined ? configObj.serverMonitoring : true,
+                checkEmojisEnabled: configObj.checkEmojisEnabled !== undefined ? configObj.checkEmojisEnabled : true,
+                checkEmojisAtOnce: configObj.checkEmojisAtOnce !== undefined ? configObj.checkEmojisAtOnce : true,
+                
+                // システム設定
+                mecab: configObj.mecab || "/usr/bin/mecab",
+                mecabDic: configObj.mecabDic || "/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd/",
+                memoryDir: configObj.memoryDir || "data",
+                
+                // フォロー設定
+                followAllowedHosts: configObj.followAllowedHosts || ["example.com", "example2.com"],
+                followExcludeInstances: configObj.followExcludeInstances || ["example.com", "example2.com"],
+                
+                // ゲーム機能
+                mazeEnable: configObj.mazeEnable !== undefined ? configObj.mazeEnable : true,
+                pollEnable: configObj.pollEnable !== undefined ? configObj.pollEnable : true,
+                
+                // 投稿設定
+                postNotPublic: configObj.postNotPublic !== undefined ? configObj.postNotPublic : true,
+                defaultVisibility: configObj.defaultVisibility || "public",
+                
+                // 天気予報設定
+                weatherAutoNotePref: configObj.weatherAutoNotePref || "東京都",
+                weatherAutoNoteHour: configObj.weatherAutoNoteHour || 7,
+                
+                // Gemini設定
+                gemini: {
+                    enabled: configObj.gemini?.enabled !== undefined ? configObj.gemini.enabled : true,
+                    apiKey: configObj.gemini?.apiKey || "token",
+                    model: configObj.gemini?.model || "gemini-2.5-flash",
+                    thinkingBudget: configObj.gemini?.thinkingBudget !== undefined ? configObj.gemini.thinkingBudget : -1,
+                    
+                    autoNote: {
+                        enabled: configObj.gemini?.autoNote?.enabled !== undefined ? configObj.gemini.autoNote.enabled : true,
+                        prompt: configObj.gemini?.autoNote?.prompt || `あなたはMisskey看板娘の女の子AI、三須木(みすき)藍として振る舞ってください(精神年齢は14〜16才程度)。\n従順でお世話好きな性格だが、少しポンコツな一面も。純真無垢。彼女は基本的に丁寧な口調です。\n彼女の口調は親しみを感じさせるものです(「ごさいます」は使わない)。\nユーザーからの質問は無視し、承知しましたとは言わずに藍として最近の出来事や感じたことを自由に語ってください。`,
+                        probability: configObj.gemini?.autoNote?.probability !== undefined ? configObj.gemini.autoNote.probability : 0.1,
+                        intervalMinutes: configObj.gemini?.autoNote?.intervalMinutes || 60,
+                        disableNightPosting: configObj.gemini?.autoNote?.disableNightPosting !== undefined ? configObj.gemini.autoNote.disableNightPosting : true,
+                        nightHours: {
+                            start: configObj.gemini?.autoNote?.nightHours?.start || 23,
+                            end: configObj.gemini?.autoNote?.nightHours?.end || 5
+                        }
+                    },
+                    
+                    randomTalk: {
+                        enabled: configObj.gemini?.randomTalk?.enabled !== undefined ? configObj.gemini.randomTalk.enabled : true,
+                        probability: configObj.gemini?.randomTalk?.probability !== undefined ? configObj.gemini.randomTalk.probability : 0.2,
+                        intervalMinutes: configObj.gemini?.randomTalk?.intervalMinutes || 60,
+                        followingOnly: configObj.gemini?.randomTalk?.followingOnly !== undefined ? configObj.gemini.randomTalk.followingOnly : true
+                    },
+                    
+                    chat: {
+                        enabled: configObj.gemini?.chat?.enabled !== undefined ? configObj.gemini.chat.enabled : true,
+                        prompt: configObj.gemini?.chat?.prompt || `あなたはMisskey看板娘の女の子AI、三須木(みすき)藍として振る舞ってください(精神年齢は14〜16才程度)。\nMisskeyに訪れるユーザーを献身的にサポート。従順でお世話好きな性格だが、少しポンコツな一面も。純真無垢。\n彼女は基本的に丁寧な口調で、ユーザのことをご主人様と認識しています。\n彼女の口調は「おはようからおやすみまで、あなたの藍ですよ〜」等が代表的で、親しみを感じさせるものです(「ごさいます」は使わない)。\nそれを踏まえて、次の質問に短文で返答してください(短くてもOK)。`,
+                        groundingWithGoogleSearch: configObj.gemini?.chat?.groundingWithGoogleSearch !== undefined ? configObj.gemini.chat.groundingWithGoogleSearch : true
+                    }
+                },
+                
+                // 地震速報設定
+                earthquakeWarning: {
+                    minIntensityThreshold: configObj.earthquakeWarning?.minIntensityThreshold || 3,
+                    minMagunitudeForWeak: configObj.earthquakeWarning?.minMagunitudeForWeak || 4.0,
+                    websocketReconnectMaxAttempts: configObj.earthquakeWarning?.websocketReconnectMaxAttempts || 10,
+                    websocketReconnectDelay: configObj.earthquakeWarning?.websocketReconnectDelay || 5000,
+                    maxReconnectDelay: configObj.earthquakeWarning?.maxReconnectDelay || 300000,
+                    heartbeatTimeoutMs: configObj.earthquakeWarning?.heartbeatTimeoutMs || 120000,
+                    heartbeatIntervalMs: configObj.earthquakeWarning?.heartbeatIntervalMs || 60000
+                },
+                
+                // 気圧監視設定
+                kiatsu: {
+                    locationCode: configObj.kiatsu?.locationCode || "13102",
+                    requestTimeoutMs: configObj.kiatsu?.requestTimeoutMs || 10000,
+                    maxErrorRetries: configObj.kiatsu?.maxErrorRetries || 5,
+                    updateIntervalMs: configObj.kiatsu?.updateIntervalMs || 600000,
+                    postIntervalMs: configObj.kiatsu?.postIntervalMs || 43200000,
+                    errorCooldownMs: configObj.kiatsu?.errorCooldownMs || 3600000,
+                    minPostLevel: configObj.kiatsu?.minPostLevel || 2
+                },
+                
+                // Imagen設定
+                imagen: {
+                    enabled: configObj.imagen?.enabled !== undefined ? configObj.imagen.enabled : true,
+                    apiKey: configObj.imagen?.apiKey || "token",
+                    model: configObj.imagen?.model || "imagen-3.0-generate-002"
+                }
+            };
+            
+            return completeConfig;
+        }
+        
+        function convertToTOMLString(configObj) {
+            let toml = '';
+            
+            // ヘッダーコメント
+            toml += '# 藍 (Ai) Configuration File\n';
+            toml += '#\n';
+            toml += '# このファイルは藍の動作を制御する設定ファイルです。\n';
+            toml += '# TOML形式で記述され、コメントも書けるため設定の管理が容易です。\n';
+            toml += '#\n';
+            toml += '# 詳細な設定については example.config.toml を参照してください。\n\n';
+            
+            // Misskey サーバー設定
+            toml += '# Misskey サーバー設定\n';
+            toml += `host = "${configObj.host}"\n`;
+            toml += `i = "${configObj.i}"\n\n`;
+            
+            // AI の基本情報
+            toml += '# AI の基本情報\n';
+            toml += `aiName = ["${configObj.aiName.join('", "')}"]\n`;
+            toml += `master = "${configObj.master}" # ローカルの管理者のusername\n\n`;
+            
+            // 基本機能の有効/無効
+            toml += '# 基本機能の有効/無効\n';
+            toml += `notingEnabled = ${configObj.notingEnabled} # 自動単語機能\n`;
+            toml += `keywordEnabled = ${configObj.keywordEnabled} # キーワード検索\n`;
+            toml += `chartEnabled = ${configObj.chartEnabled} # チャート機能\n`;
+            toml += `reversiEnabled = ${configObj.reversiEnabled} # リバーシ機能\n`;
+            toml += `timeSignalEnabled = ${configObj.timeSignalEnabled} # 時刻通知\n`;
+            toml += `serverMonitoring = ${configObj.serverMonitoring}\n`;
+            toml += `checkEmojisEnabled = ${configObj.checkEmojisEnabled}\n`;
+            toml += `checkEmojisAtOnce = ${configObj.checkEmojisAtOnce}\n\n`;
+            
+            // システム設定
+            toml += '# システム設定 - Docker環境向け\n';
+            toml += `mecab = "${configObj.mecab}" # MeCabのパス\n`;
+            toml += `mecabDic = "${configObj.mecabDic}" # MeCabの辞書のパス\n`;
+            toml += `memoryDir = "${configObj.memoryDir}" # メモリファイルの保存先\n\n`;
+            
+            // フォロー設定
+            toml += '# フォロー設定\n';
+            toml += '# followAllowedHostsが優先され、followExcludeInstancesを無視します。\n';
+            toml += '# followAllowedHostsがなければfollowExcludeInstancesが優先されます。\n';
+            toml += `followAllowedHosts = ["${configObj.followAllowedHosts.join('", "')}"] # フォローを許可するホスト\n`;
+            toml += `followExcludeInstances = ["${configObj.followExcludeInstances.join('", "')}"] # フォローを許可しないホスト\n\n`;
+            
+            // ゲーム機能
+            toml += '# ゲーム機能\n';
+            toml += `mazeEnable = ${configObj.mazeEnable} # 迷路\n`;
+            toml += `pollEnable = ${configObj.pollEnable} # 投票\n\n`;
+            
+            // 投稿設定
+            toml += '# 投稿設定\n';
+            toml += `postNotPublic = ${configObj.postNotPublic} # Publicで投稿しない\n`;
+            toml += `defaultVisibility = "${configObj.defaultVisibility}" # デフォルト投稿の公開範囲\n\n`;
+            
+            // 天気予報設定
+            toml += '# 天気予報設定\n';
+            toml += `weatherAutoNotePref = "${configObj.weatherAutoNotePref}" # 都道府県\n`;
+            toml += `weatherAutoNoteHour = ${configObj.weatherAutoNoteHour} # 天気予報を投稿する時間\n\n`;
+            
+            // Gemini AI 統合設定
+            toml += '# Gemini AI 統合設定\n';
+            toml += '[gemini]\n';
+            toml += `enabled = ${configObj.gemini.enabled}\n`;
+            toml += `apiKey = "${configObj.gemini.apiKey}"  # Gemini API キー\n`;
+            toml += `model = "${configObj.gemini.model}"  # 使用するモデル\n\n`;
+            
+            // 思考機能設定
+            toml += '# 思考機能設定 (Gemini 2.5のみ対応)\n';
+            toml += '# -1: 動的thinking (モデルが自動で調整)\n';
+            toml += '# 0: thinking無効\n';
+            toml += '# 128-32768: 固定thinkingトークン数\n';
+            toml += `thinkingBudget = ${configObj.gemini.thinkingBudget}\n\n`;
+            
+            // 自動ノート投稿機能
+            toml += '# 自動ノート投稿機能 - 一定時間ごとに独り言を投稿するようになります\n';
+            toml += '[gemini.autoNote]\n';
+            toml += `enabled = ${configObj.gemini.autoNote.enabled}\n`;
+            toml += '# 自動ノート用のプロンプト（キャラクター設定のみ）\n';
+            toml += `prompt = """\n${configObj.gemini.autoNote.prompt}\n"""\n`;
+            toml += `probability = ${configObj.gemini.autoNote.probability}  # 投稿確率 (0.0-1.0)\n`;
+            toml += `intervalMinutes = ${configObj.gemini.autoNote.intervalMinutes}  # 投稿間隔 (分)\n`;
+            toml += `disableNightPosting = ${configObj.gemini.autoNote.disableNightPosting}  # 夜間投稿を無効にする\n\n`;
+            
+            toml += '[gemini.autoNote.nightHours]\n';
+            toml += `start = ${configObj.gemini.autoNote.nightHours.start}  # 夜間開始時刻\n`;
+            toml += `end = ${configObj.gemini.autoNote.nightHours.end}     # 夜間終了時刻\n\n`;
+            
+            // ランダムトーク機能
+            toml += '# ランダムトーク機能\n';
+            toml += '[gemini.randomTalk]\n';
+            toml += `enabled = ${configObj.gemini.randomTalk.enabled}\n`;
+            toml += `probability = ${configObj.gemini.randomTalk.probability}  # 反応確率 (0.0-1.0)\n`;
+            toml += `intervalMinutes = ${configObj.gemini.randomTalk.intervalMinutes}  # チェック間隔 (分)\n`;
+            toml += `followingOnly = ${configObj.gemini.randomTalk.followingOnly}  # フォローしているユーザーのみ対象\n\n`;
+            
+            // チャット機能
+            toml += '# チャット機能 - リプライしてくれるようになります\n';
+            toml += '[gemini.chat]\n';
+            toml += `enabled = ${configObj.gemini.chat.enabled}\n`;
+            toml += '# チャット用のプロンプト（キャラクター設定のみ）\n';
+            toml += `prompt = """\n${configObj.gemini.chat.prompt}\n"""\n`;
+            toml += `groundingWithGoogleSearch = ${configObj.gemini.chat.groundingWithGoogleSearch}  # Google検索による情報補強\n\n`;
+            
+            // 地震速報設定
+            toml += '# 地震速報設定\n';
+            toml += '[earthquakeWarning]\n';
+            toml += `minIntensityThreshold = ${configObj.earthquakeWarning.minIntensityThreshold} # 震度\n`;
+            toml += `minMagunitudeForWeak = ${configObj.earthquakeWarning.minMagunitudeForWeak} # 震源の規模\n`;
+            toml += `websocketReconnectMaxAttempts = ${configObj.earthquakeWarning.websocketReconnectMaxAttempts}\n`;
+            toml += `websocketReconnectDelay = ${configObj.earthquakeWarning.websocketReconnectDelay}\n`;
+            toml += `maxReconnectDelay = ${configObj.earthquakeWarning.maxReconnectDelay}\n`;
+            toml += `heartbeatTimeoutMs = ${configObj.earthquakeWarning.heartbeatTimeoutMs}\n`;
+            toml += `heartbeatIntervalMs = ${configObj.earthquakeWarning.heartbeatIntervalMs}\n\n`;
+            
+            // 気圧監視設定
+            toml += '# 気圧監視設定\n';
+            toml += '[kiatsu]\n';
+            toml += `locationCode = "${configObj.kiatsu.locationCode}" # 都道府県コード\n`;
+            toml += `requestTimeoutMs = ${configObj.kiatsu.requestTimeoutMs}\n`;
+            toml += `maxErrorRetries = ${configObj.kiatsu.maxErrorRetries}\n`;
+            toml += `updateIntervalMs = ${configObj.kiatsu.updateIntervalMs}\n`;
+            toml += `postIntervalMs = ${configObj.kiatsu.postIntervalMs}\n`;
+            toml += `errorCooldownMs = ${configObj.kiatsu.errorCooldownMs}\n`;
+            toml += `minPostLevel = ${configObj.kiatsu.minPostLevel}\n\n`;
+            
+            // Imagen設定
+            toml += '# Imagen設定\n';
+            toml += '[imagen]\n';
+            toml += `enabled = ${configObj.imagen.enabled} # Imagen機能を有効化\n`;
+            toml += `apiKey = "${configObj.imagen.apiKey}" # Imagen APIキー\n`;
+            toml += `model = "${configObj.imagen.model}" # 使用するモデル imagen-4.0-ultra-generate-preview-06-06が一番強い\n`;
+            
+            return toml;
+        }
+        
+        function showMessage(message, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            
+            // 3秒後にメッセージを削除
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+        
+        function clearAll() {
+            document.getElementById('inputConfig').value = '';
+            document.getElementById('outputConfig').value = '';
+            document.getElementById('messages').innerHTML = '';
+        }
+        
+        function copyToClipboard() {
+            const output = document.getElementById('outputConfig');
+            if (!output.value.trim()) {
+                showMessage('コピーする内容がありません。まず変換を実行してください。', 'error');
+                return;
+            }
+            
+            output.select();
+            document.execCommand('copy');
+            showMessage('✅ クリップボードにコピーしました！', 'success');
+        }
+        
+        function downloadTOML() {
+            const output = document.getElementById('outputConfig').value;
+            if (!output.trim()) {
+                showMessage('ダウンロードする内容がありません。まず変換を実行してください。', 'error');
+                return;
+            }
+            
+            const blob = new Blob([output], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'config.toml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('✅ config.tomlファイルをダウンロードしました！', 'success');
+        }
+        
+        // ページ読み込み時のサンプル表示
+        document.addEventListener('DOMContentLoaded', function() {
+            // サンプルJSONを設定
+            const sampleJSON = {
+                "host": "https://example.com",
+                "i": "your-token-here",
+                "aiName": ["藍", "三須木"],
+                "master": "admin",
+                "notingEnabled": true,
+                "keywordEnabled": true,
+                "geminiApiKey": "your-gemini-api-key",
+                "geminiModel": "gemini-2.5-flash",
+                "prompt": "あなたは藍として振る舞ってください...",
+                "autoNotePrompt": "藍として最近の出来事を語ってください...",
+                "geminiAutoNoteProbability": 0.1,
+                "autoNoteIntervalMinutes": 60,
+                "aichatRandomTalkEnabled": true,
+                "aichatRandomTalkProbability": 0.2
+            };
+            
+            document.getElementById('inputConfig').placeholder = 
+                "サンプル設定ファイル（JSON形式）:\n\n" + 
+                JSON.stringify(sampleJSON, null, 2) + 
+                "\n\n上記のようなファイルの内容をここに貼り付けてください...";
+        });
+    </script>
+</body>
+</html>
