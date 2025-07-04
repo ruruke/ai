@@ -72,7 +72,17 @@ export default class extends Module {
 
   @bindThis
   private async generateImage(prompt: string): Promise<ImagenApiResponse> {
-    const model = config.imagen?.model || 'imagen-3.0-generate-002';
+    // APIキーの存在確認
+    if (!config.imagen?.apiKey) {
+      return {
+        error: {
+          code: 500,
+          message: 'APIキーが設定されていません',
+        },
+      };
+    }
+
+    const model = config.imagen.model || 'imagen-3.0-generate-002';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`;
 
     const requestBody: ImagenRequest = {
@@ -90,7 +100,7 @@ export default class extends Module {
       const response = await got
         .post(apiUrl, {
           headers: {
-            'x-goog-api-key': config.imagen!.apiKey!,
+            'x-goog-api-key': config.imagen.apiKey,
             'Content-Type': 'application/json',
           },
           json: requestBody,
@@ -126,7 +136,15 @@ export default class extends Module {
       const buffer = Buffer.from(imageBase64, 'base64');
 
       // ファイル拡張子を決定
-      const extension = mimeType.includes('png') ? 'png' : 'jpg';
+      const mimeToExt: Record<string, string> = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+        'image/bmp': 'bmp',
+      };
+      const extension = mimeToExt[mimeType] || 'jpg';
       const filename = `imagen_${Date.now()}.${extension}`;
 
       // Misskeyのドライブにアップロード
