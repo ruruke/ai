@@ -105,11 +105,12 @@ export default class extends Module {
 
       return response;
     } catch (error: any) {
-      this.log(`Imagen API error: ${error.message}`);
+      this.log(`Imagen API error: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
       return {
         error: {
-          code: error.response?.statusCode || 500,
-          message: error.message || 'Unknown error',
+          code: error?.response?.statusCode ?? 500,
+          message,
         },
       };
     }
@@ -132,7 +133,7 @@ export default class extends Module {
       const file = (await this.ai.upload(buffer, {
         filename,
         contentType: mimeType,
-      })) as any;
+      })) as { id: string };
 
       return file.id;
     } catch (error) {
