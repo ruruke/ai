@@ -58,7 +58,7 @@ export default class 藍 {
   private mentionHooks: MentionHook[] = [];
   private contextHooks: { [moduleName: string]: ContextHook } = {};
   private timeoutCallbacks: { [moduleName: string]: TimeoutCallback } = {};
-  private dbManager!: DatabaseManager;
+  public dbManager!: DatabaseManager;
   private apiClient!: APIClient;
   private timerManager!: TimerManager;
   public lastSleepedAt!: number;
