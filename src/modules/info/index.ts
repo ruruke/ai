@@ -11,9 +11,12 @@ import os from 'os';
 // 型定義
 declare namespace NodeJS {
   interface Global {
-    gc?(options?: {
-      type?: 'major' | 'minor' | 'full' | 'incremental';
-    }): undefined | Promise<void>;
+    gc?(minor?: boolean): void;
+    gc?(options: { type?: 'major' | 'minor' | 'major-snapshot' }): void;
+    gc?(options: {
+      type?: 'major' | 'minor' | 'major-snapshot';
+      execution: 'async';
+    }): Promise<void>;
   }
 }
 
@@ -92,20 +95,24 @@ function setupGCMonitoring() {
   const originalGC = global.gc;
 
   const wrappedGC = (
-    arg?: boolean | { type?: 'major' | 'minor' | 'major-snapshot' }
-  ): any => {
+    arg?:
+      | boolean
+      | { type?: 'major' | 'minor' | 'major-snapshot'; execution?: 'async' }
+  ): undefined | Promise<void> => {
     const start = process.hrtime();
     try {
       let result: any;
       let gcType: GCType = 'unknown';
 
-      if (typeof arg === 'object' && arg !== null) {
+      if (typeof arg === 'boolean') {
+        result = originalGC(arg);
+        gcType = arg ? 'major' : 'minor';
+      } else if (arg && typeof arg === 'object') {
         result = originalGC(arg);
         gcType = arg.type || 'unknown';
       } else {
-        result = originalGC(arg);
-        if (arg === true) gcType = 'major';
-        else if (arg === false) gcType = 'minor';
+        result = originalGC();
+        gcType = 'unknown';
       }
 
       if (isPromise(result)) {
