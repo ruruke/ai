@@ -1,6 +1,7 @@
 import { bindThis } from '@/decorators.js';
 import Module from '@/module.js';
 import Message from '@/message.js';
+import Friend from '@/friend.js';
 
 export default class extends Module {
   public readonly name = 'reaction-config';
@@ -20,7 +21,7 @@ export default class extends Module {
 
     // 状態確認
     if (text.includes('status')) {
-      const enabled = this.isReactionEnabled(msg);
+      const enabled = this.isReactionEnabled(msg.friend);
       msg.reply(`リアクション機能: ${enabled ? '有効' : '無効'}`);
       return true;
     }
@@ -28,24 +29,16 @@ export default class extends Module {
     // 設定変更 - 単語単位での判定
     const words = text.split(/\s+/);
 
-    if (
-      words.includes('true') ||
-      words.includes('on') ||
-      words.includes('enable') ||
-      words.includes('オン')
-    ) {
-      this.setReactionEnabled(msg, true);
+    const enableWords = new Set(['true', 'on', 'enable', 'オン']);
+    if (words.some((word) => enableWords.has(word))) {
+      this.setReactionEnabled(msg.friend, true);
       msg.reply('リアクション機能を有効にしました');
       return true;
     }
 
-    if (
-      words.includes('false') ||
-      words.includes('off') ||
-      words.includes('disable') ||
-      words.includes('オフ')
-    ) {
-      this.setReactionEnabled(msg, false);
+    const disableWords = new Set(['false', 'off', 'disable', 'オフ']);
+    if (words.some((word) => disableWords.has(word))) {
+      this.setReactionEnabled(msg.friend, false);
       msg.reply('リアクション機能を無効にしました');
       return true;
     }
@@ -54,15 +47,15 @@ export default class extends Module {
   }
 
   @bindThis
-  public isReactionEnabled(msg: Message): boolean {
-    const userData = msg.friend.getPerModulesData(this);
+  public isReactionEnabled(friend: Friend): boolean {
+    const userData = friend.getPerModulesData(this);
     return userData.autoReactionEnabled !== false; // デフォルト true
   }
 
   @bindThis
-  private setReactionEnabled(msg: Message, enabled: boolean) {
-    const userData = msg.friend.getPerModulesData(this);
+  private setReactionEnabled(friend: Friend, enabled: boolean) {
+    const userData = friend.getPerModulesData(this);
     userData.autoReactionEnabled = enabled;
-    msg.friend.setPerModulesData(this, userData);
+    friend.setPerModulesData(this, userData);
   }
 }

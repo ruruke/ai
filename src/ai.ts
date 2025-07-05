@@ -175,15 +175,7 @@ export default class 藍 {
 
       // リアクション設定チェック
       const friend = this.lookupFriend(data.userId);
-      const reactionModule = this.modules.find(
-        (m) => m.name === 'reaction-config'
-      ) as any;
-      const shouldReaction =
-        reactionModule && friend
-          ? reactionModule.isReactionEnabled({ friend })
-          : true;
-
-      if (!shouldReaction) return;
+      if (!this.shouldReaction(friend)) return;
 
       // リアクションする
       this.api('notes/reactions/create', {
@@ -341,20 +333,12 @@ export default class 藍 {
       await sleep(1000);
     }
 
-    // リアクション設定チェック
-    const reactionModule = this.modules.find(
-      (m) => m.name === 'reaction-config'
-    ) as any;
-    const shouldReaction = reactionModule
-      ? reactionModule.isReactionEnabled(msg)
-      : true;
-
     // リアクションする
     if (msg.isChat) {
       // TODO: リアクション？
     } else {
       // リアクションする
-      if (reaction && shouldReaction) {
+      if (reaction && this.shouldReaction(msg.friend)) {
         this.api('notes/reactions/create', {
           noteId: msg.id,
           reaction: reaction,
@@ -405,6 +389,20 @@ export default class 藍 {
     const friend = new Friend(this, { doc: doc });
 
     return friend;
+  }
+
+  /**
+   * リアクション設定を確認します
+   */
+  @bindThis
+  public shouldReaction(friend: Friend | null): boolean {
+    if (!friend) return true; // friendが存在しない場合はデフォルトで有効
+
+    const reactionModule = this.modules.find(
+      (m) => m.name === 'reaction-config'
+    ) as any;
+
+    return reactionModule ? reactionModule.isReactionEnabled(friend) : true;
   }
 
   /**

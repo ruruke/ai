@@ -30,15 +30,7 @@ export default class extends Module {
 
     // リアクション設定チェック
     const friend = this.ai.lookupFriend(note.userId);
-    const reactionModule = this.ai.modules.find(
-      (m) => m.name === 'reaction-config'
-    ) as any;
-    const shouldReaction =
-      reactionModule && friend
-        ? reactionModule.isReactionEnabled({ friend })
-        : true;
-
-    if (!shouldReaction) return;
+    if (!this.ai.shouldReaction(friend)) return;
 
     const react = async (reaction: string, immediate = false) => {
       if (!immediate) {
