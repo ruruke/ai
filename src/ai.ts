@@ -173,6 +173,18 @@ export default class 藍 {
       if (data.userId == this.account.id) return; // 自分は弾く
       if (data.text == null && (data.files || []).length == 0) return;
 
+      // リアクション設定チェック
+      const friend = this.lookupFriend(data.userId);
+      const reactionModule = this.modules.find(
+        (m) => m.name === 'reaction-config'
+      ) as any;
+      const shouldReaction =
+        reactionModule && friend
+          ? reactionModule.isReactionEnabled({ friend })
+          : true;
+
+      if (!shouldReaction) return;
+
       // リアクションする
       this.api('notes/reactions/create', {
         noteId: data.id,
@@ -329,12 +341,20 @@ export default class 藍 {
       await sleep(1000);
     }
 
+    // リアクション設定チェック
+    const reactionModule = this.modules.find(
+      (m) => m.name === 'reaction-config'
+    ) as any;
+    const shouldReaction = reactionModule
+      ? reactionModule.isReactionEnabled(msg)
+      : true;
+
     // リアクションする
     if (msg.isChat) {
       // TODO: リアクション？
     } else {
       // リアクションする
-      if (reaction) {
+      if (reaction && shouldReaction) {
         this.api('notes/reactions/create', {
           noteId: msg.id,
           reaction: reaction,

@@ -28,6 +28,18 @@ export default class extends Module {
     if (note.text.includes('@')) return; // (自分または他人問わず)メンションっぽかったらreject
     if (note.userId === this.ai.account.id) return;
 
+    // リアクション設定チェック
+    const friend = this.ai.lookupFriend(note.userId);
+    const reactionModule = this.ai.modules.find(
+      (m) => m.name === 'reaction-config'
+    ) as any;
+    const shouldReaction =
+      reactionModule && friend
+        ? reactionModule.isReactionEnabled({ friend })
+        : true;
+
+    if (!shouldReaction) return;
+
     const react = async (reaction: string, immediate = false) => {
       if (!immediate) {
         await sleep(1500);

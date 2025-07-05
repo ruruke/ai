@@ -45,6 +45,7 @@ import WeatherModule from './modules/weather/index.js';
 import TimeSignalModule from './modules/time-signal/index.js';
 import ImagenModule from './modules/imagen/index.js';
 import InfoModule from './modules/info/index.js';
+import ReactionConfigModule from './modules/reaction-config/index.js';
 
 console.log('   __    ____  _____  ___ ');
 console.log('  /__\\  (_  _)(  _  )/ __)');
@@ -93,6 +94,7 @@ promiseRetry(
       new CoreModule(),
       new AiChatModule(),
       new ReminderModule(),
+      new ReactionConfigModule(),
       new TalkModule(),
       new CheckCustomEmojisModule(),
       new EmojiModule(),
