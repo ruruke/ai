@@ -65,10 +65,12 @@ export default class DatabaseManager {
       const error = new Error(
         `Failed to create memory directory: ${e.message}`
       );
-      this.log(chalk.red(error.message));
-      onError(error);
-      throw error; // Stop execution if directory cannot be created
-    }
+     const error = new Error(
+       `Failed to create memory directory: ${e.message}`
+     );
+     this.log(chalk.red(error.message));
+     onError(error);
+     return; // onErrorコールバックに処理を委譲
 
     const file =
       process.env.NODE_ENV === 'test'
