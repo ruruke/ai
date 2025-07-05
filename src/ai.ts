@@ -173,6 +173,10 @@ export default class 藍 {
       if (data.userId == this.account.id) return; // 自分は弾く
       if (data.text == null && (data.files || []).length == 0) return;
 
+      // リアクション設定チェック
+      const friend = this.lookupFriend(data.userId);
+      if (!this.shouldReaction(friend)) return;
+
       // リアクションする
       this.api('notes/reactions/create', {
         noteId: data.id,
@@ -334,7 +338,7 @@ export default class 藍 {
       // TODO: リアクション？
     } else {
       // リアクションする
-      if (reaction) {
+      if (reaction && this.shouldReaction(msg.friend)) {
         this.api('notes/reactions/create', {
           noteId: msg.id,
           reaction: reaction,
@@ -385,6 +389,20 @@ export default class 藍 {
     const friend = new Friend(this, { doc: doc });
 
     return friend;
+  }
+
+  /**
+   * リアクション設定を確認します
+   */
+  @bindThis
+  public shouldReaction(friend: Friend | null): boolean {
+    if (!friend) return true; // friendが存在しない場合はデフォルトで有効
+
+    const reactionModule = this.modules.find(
+      (m) => m.name === 'reaction-config'
+    ) as any;
+
+    return reactionModule ? reactionModule.isReactionEnabled(friend) : true;
   }
 
   /**
