@@ -44,6 +44,7 @@ import KiatsuModule from './modules/kiatsu/index.js';
 import WeatherModule from './modules/weather/index.js';
 import TimeSignalModule from './modules/time-signal/index.js';
 import ImagenModule from './modules/imagen/index.js';
+import InfoModule from './modules/info/index.js';
 
 console.log('   __    ____  _____  ___ ');
 console.log('  /__\\  (_  _)(  _  )/ __)');
@@ -119,6 +120,7 @@ promiseRetry(
       new WeatherModule(),
       new TimeSignalModule(),
       new ImagenModule(),
+      new InfoModule(),
     ]);
   })
   .catch((e) => {

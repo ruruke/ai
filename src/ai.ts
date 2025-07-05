@@ -78,6 +78,27 @@ export default class 藍 {
   }
 
   /**
+   * データベースの統計情報を取得します
+   */
+  @bindThis
+  public getDatabaseStats() {
+    const collections = this.dbManager.db.collections?.filter(Boolean) || [];
+    let totalDocuments = 0;
+    let totalSize = 0;
+
+    for (const collection of collections) {
+      totalDocuments += collection.count();
+      totalSize += JSON.stringify(collection.data).length;
+    }
+
+    return {
+      collections: collections.length,
+      documents: totalDocuments,
+      size: totalSize,
+    };
+  }
+
+  /**
    * 藍インスタンスを生成します
    * @param account 藍として使うアカウント
    * @param modules モジュール。先頭のモジュールほど高優先度

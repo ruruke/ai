@@ -121,3 +121,12 @@ minPostLevel = 2
 enabled = true # Imagen機能を有効化
 apiKey = "token" # Imagen APIキー
 model = "imagen-3.0-generate-002" # 使用するモデル imagen-4.0-ultra-generate-preview-06-06が一番強い
+
+# 情報モジュール設定
+[info]
+# イベントループの監視間隔 (ミリ秒)
+eventLoopMonitoringInterval = 1000
+# GC監視を有効にするか (Node.jsの--expose-gcフラグが必要です)
+enableGCMonitoring = true
+# 数値の小数点以下の表示桁数
+precision = 2
