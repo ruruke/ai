@@ -166,9 +166,11 @@ export default class DatabaseManager {
         lastWakingAt: Date.now(),
       };
 
-      // insertOneはundefinedを返す可能性があるが、metaコレクションにはunique制約がないため、
-      // 常にオブジェクトが返されるはず。nullでないことをアサーションする。
-      return this.meta.insertOne(initial)!;
+      const inserted = this.meta.insertOne(initial);
+      if (!inserted) {
+        throw new Error('Failed to create initial meta document');
+      }
+      return inserted;
     }
   }
 
