@@ -113,7 +113,7 @@ function setupGCMonitoring() {
     }
   };
 
-    global.gc = wrappedGC as any;
+    global.gc = wrappedGC as NodeJS.Global['gc'];
 }
 
 initializeVersion();
