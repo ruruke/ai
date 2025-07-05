@@ -138,7 +138,7 @@ function updateGCStats(start: [number, number], type: GCType = 'unknown') {
  */
 async function updateDatabaseStats(ai: AI): Promise<void> {
   try {
-    const db = (ai as any).dbManager as DatabaseManager;
+    const db = ai.dbManager;
     if (!db) {
       console.warn('DatabaseManager not available, skipping stats update.');
       return;
