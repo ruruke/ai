@@ -78,6 +78,11 @@ type Config = {
     apiKey?: string;
     model?: string;
   };
+  info?: {
+    eventLoopMonitoringInterval?: number;
+    enableGCMonitoring?: boolean;
+    precision?: number;
+  };
 };
 
 import { performStartupConfigCheck } from './config-updater.js';
