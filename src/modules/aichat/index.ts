@@ -20,6 +20,7 @@ type AiChat = {
   friendName?: string;
   grounding?: boolean;
   history?: ChatHistoryItem[];
+  timelineContext?: { before?: any[]; after?: any[] };
 };
 
 type ChatHistoryItem = {
@@ -76,6 +77,7 @@ type AiChatHist = {
   youtubeUrls?: string[];
   isChat?: boolean;
   chatUserId?: string;
+  timelineContext?: { before?: any[]; after?: any[] };
 };
 
 type ApiErrorResponse = {
@@ -303,6 +305,36 @@ export default class extends Module {
     // グラウンディングについてもsystemInstructionTextに追記(こうしないとあまり使わないので)
     if (aiChat.grounding) {
       systemInstructionText += '返答のルール2:Google search with grounding.';
+    }
+
+    // ユーザー投稿履歴文脈情報を追加
+    if (aiChat.timelineContext) {
+      systemInstructionText += '\n\n【ユーザー投稿履歴文脈情報】\n';
+      systemInstructionText +=
+        'これらの情報は、同じユーザーが最近投稿した内容で、メインの投稿への返信を生成する際の話題の流れや雰囲気を把握する参考程度に留めてください。メインの投稿に対する返信であることを忘れないでください。\n';
+
+      if (
+        aiChat.timelineContext.before &&
+        aiChat.timelineContext.before.length > 0
+      ) {
+        const beforePosts = aiChat.timelineContext.before;
+        beforePosts.forEach((note, index) => {
+          systemInstructionText += `以前の投稿${
+            beforePosts.length > 1 ? `(${index + 1})` : ''
+          }: ${note.text}\n`;
+        });
+      }
+      if (
+        aiChat.timelineContext.after &&
+        aiChat.timelineContext.after.length > 0
+      ) {
+        const afterPosts = aiChat.timelineContext.after;
+        afterPosts.forEach((note, index) => {
+          systemInstructionText += `その後の投稿${
+            afterPosts.length > 1 ? `(${index + 1})` : ''
+          }: ${note.text}\n`;
+        });
+      }
     }
 
     // URLから情報を取得
@@ -792,11 +824,9 @@ export default class extends Module {
     return false;
   }
 
-  @bindThis
-  private async aichatRandomTalk() {
-    this.log('aichatRandomTalk called');
-    const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
-    const interestedNotes = tl.filter(
+  // フィルタリング処理を関数化
+  private filterInterestedNotes(notes: any[]): any[] {
+    return notes.filter(
       (note: any) =>
         note.userId !== this.ai.account.id &&
         note.text != null &&
@@ -804,9 +834,60 @@ export default class extends Module {
         note.renoteId == null &&
         note.cw == null &&
         (note.visibility === 'public' || note.visibility === 'home') &&
-        note.files.length == 0 &&
+        note.files?.length == 0 &&
         !note.user.isBot
     );
+  }
+
+  // ユーザー投稿履歴から文脈取得関数
+  private async getUserNotesContext(
+    selectedNote: any,
+    userId: string,
+    contextRange: number = 5,
+    contextUsageCount: number = 3
+  ): Promise<{ before?: any[]; after?: any[] }> {
+    try {
+      // 並列でAPI呼び出しを実行
+      const [newerNotes, olderNotes] = await Promise.all([
+        this.ai.api<any[]>('users/notes', {
+          userId: userId,
+          sinceId: selectedNote.id,
+          limit: contextRange,
+        }),
+        this.ai.api<any[]>('users/notes', {
+          userId: userId,
+          untilId: selectedNote.id,
+          limit: contextRange,
+        }),
+      ]);
+
+      // フィルタリング適用
+      const filteredNewer = newerNotes
+        ? this.filterInterestedNotes(newerNotes)
+        : [];
+      const filteredOlder = olderNotes
+        ? this.filterInterestedNotes(olderNotes)
+        : [];
+
+      // contextUsageCount分だけ取得（選択された投稿に近い順）
+      const beforeContext = filteredOlder.slice(0, contextUsageCount);
+      const afterContext = filteredNewer.slice(0, contextUsageCount);
+
+      return {
+        before: beforeContext.length > 0 ? beforeContext : undefined,
+        after: afterContext.length > 0 ? afterContext : undefined,
+      };
+    } catch (error) {
+      this.log(`Error fetching user notes context: ${error}`);
+      return {};
+    }
+  }
+
+  @bindThis
+  private async aichatRandomTalk() {
+    this.log('aichatRandomTalk called');
+    const tl = await this.ai.api<any[]>('notes/timeline', { limit: 30 });
+    const interestedNotes = this.filterInterestedNotes(tl);
 
     if (interestedNotes == undefined || interestedNotes.length == 0)
       return false;
@@ -862,11 +943,27 @@ export default class extends Module {
       return false;
     }
 
+    // 文脈取得
+    const contextRange = config.gemini?.randomTalk?.contextRange || 5;
+    const contextUsageCount = config.gemini?.randomTalk?.contextUsageCount || 3;
+    const enableContext = config.gemini?.randomTalk?.enableContext !== false; // デフォルトtrue
+    let timelineContext: { before?: any[]; after?: any[] } = {};
+
+    if (enableContext) {
+      timelineContext = await this.getUserNotesContext(
+        choseNote,
+        choseNote.userId,
+        contextRange,
+        contextUsageCount
+      );
+    }
+
     const current: AiChatHist = {
       postId: choseNote.id,
       createdAt: Date.now(),
       type: TYPE_GEMINI,
       fromMention: false,
+      timelineContext: timelineContext, // 文脈情報を保存
     };
 
     let targetedMessage = choseNote;
@@ -1014,6 +1111,7 @@ export default class extends Module {
       friendName: friendName,
       fromMention: exist.fromMention,
       grounding: exist.grounding,
+      timelineContext: exist.timelineContext,
     };
 
     const base64Files: Base64File[] = await this.note2base64File(
