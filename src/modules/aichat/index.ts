@@ -993,11 +993,11 @@ export default class extends Module {
     const friend: Friend | null = this.ai.lookupFriend(msg.userId);
     let friendName: string | undefined;
     if (friend != null && friend.name != null) {
-      friendName = plain(friend.name);
+      friendName = friend.name;
     } else if (msg.user.name) {
-      friendName = plain(msg.user.name);
+      friendName = msg.user.name;
     } else {
-      friendName = plain(msg.user.username);
+      friendName = msg.user.username;
     }
 
     if (!config.gemini?.apiKey) {
@@ -1045,7 +1045,22 @@ export default class extends Module {
     }
 
     // この時点でtextはstringであることが保証される
-    const responseText: string = text;
+    let responseText: string = text;
+
+    // friendNameが含まれている場合、plainを適用したものに置換
+    if (friendName) {
+      const safeFriendName = plain(friendName);
+      // 正規表現の特殊文字をエスケープ
+      const escapedFriendName = friendName.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+      );
+      responseText = responseText.replace(
+        new RegExp(escapedFriendName, 'g'),
+        safeFriendName
+      );
+    }
+
     msg.reply(serifs.aichat.post(responseText)).then((reply) => {
       if (!exist.history) {
         exist.history = [];
