@@ -834,7 +834,7 @@ export default class extends Module {
         note.renoteId == null &&
         note.cw == null &&
         (note.visibility === 'public' || note.visibility === 'home') &&
-        note.files.length == 0 &&
+        note.files?.length == 0 &&
         !note.user.isBot
     );
   }
@@ -847,19 +847,19 @@ export default class extends Module {
     contextUsageCount: number = 3
   ): Promise<{ before?: any[]; after?: any[] }> {
     try {
-      // 選択された投稿より新しい投稿を取得 (sinceId)
-      const newerNotes = await this.ai.api<any[]>('users/notes', {
-        userId: userId,
-        sinceId: selectedNote.id,
-        limit: contextRange,
-      });
-
-      // 選択された投稿より古い投稿を取得 (untilId)
-      const olderNotes = await this.ai.api<any[]>('users/notes', {
-        userId: userId,
-        untilId: selectedNote.id,
-        limit: contextRange,
-      });
+      // 並列でAPI呼び出しを実行
+      const [newerNotes, olderNotes] = await Promise.all([
+        this.ai.api<any[]>('users/notes', {
+          userId: userId,
+          sinceId: selectedNote.id,
+          limit: contextRange,
+        }),
+        this.ai.api<any[]>('users/notes', {
+          userId: userId,
+          untilId: selectedNote.id,
+          limit: contextRange,
+        }),
+      ]);
 
       // フィルタリング適用
       const filteredNewer = newerNotes
