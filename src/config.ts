@@ -36,6 +36,9 @@ type Config = {
       probability?: number;
       intervalMinutes?: number;
       followingOnly?: boolean;
+      contextRange?: number;
+      contextUsageCount?: number;
+      enableContext?: boolean;
     };
     chat?: {
       enabled?: boolean;

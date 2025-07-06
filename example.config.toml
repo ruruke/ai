@@ -82,6 +82,9 @@ enabled = true
 probability = 0.2  # 反応確率 (0.0-1.0)
 intervalMinutes = 60  # チェック間隔 (分)
 followingOnly = true  # フォローしているユーザーのみ対象
+contextRange = 5  # 選択されたユーザーの投稿履歴から前後それぞれ何件まで文脈として取得するか (前5件+後5件=最大10件) (デフォルト: 5)
+contextUsageCount = 3  # 取得した文脈の中から実際にプロンプトに使用する前後それぞれの件数 (デフォルト: 3)
+enableContext = true  # ユーザー投稿履歴文脈機能を有効にするか (デフォルト: true)
 
 # チャット機能 - リプライしてくれるようになります
 [gemini.chat]
