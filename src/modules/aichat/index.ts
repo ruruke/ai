@@ -1164,7 +1164,7 @@ export default class extends Module {
         exist.history = [];
       }
       exist.history.push({ role: 'user', content: question });
-      exist.history.push({ role: 'model', content: responseText });
+      exist.history.push({ role: 'model', content: text as string });
       if (exist.history.length > DEFAULTS.MAX_HISTORY_LENGTH) {
         exist.history.shift();
       }
