@@ -69,13 +69,13 @@ function isPromise(p: any): p is Promise<any> {
 function initializeVersion() {
   try {
     const pkg = JSON.parse(
-      fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8')
+      fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8'),
     );
     version = pkg._v || pkg.version || 'development';
   } catch (e) {
     console.error(
       'Failed to get version:',
-      e instanceof Error ? e.message : String(e)
+      e instanceof Error ? e.message : String(e),
     );
   }
 }
@@ -87,7 +87,7 @@ function initializeVersion() {
 function setupGCMonitoring() {
   if (!config.info?.enableGCMonitoring || typeof global.gc !== 'function') {
     console.warn(
-      'GC function is not available. To enable, run Node.js with the --expose-gc flag.'
+      'GC function is not available. To enable, run Node.js with the --expose-gc flag.',
     );
     return;
   }
@@ -97,7 +97,7 @@ function setupGCMonitoring() {
   const wrappedGC = (
     arg?:
       | boolean
-      | { type?: 'major' | 'minor' | 'major-snapshot'; execution?: 'async' }
+      | { type?: 'major' | 'minor' | 'major-snapshot'; execution?: 'async' },
   ): undefined | Promise<void> => {
     const start = process.hrtime();
     try {
@@ -126,7 +126,7 @@ function setupGCMonitoring() {
     } catch (error) {
       console.error(
         'GC error:',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
       throw error;
     }
@@ -162,7 +162,7 @@ async function updateDatabaseStats(ai: AI): Promise<void> {
   } catch (error) {
     console.error(
       'Failed to update database stats:',
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     dbStats = { collections: 0, documents: 0, size: 0 }; // エラー時はリセット
   }
@@ -206,6 +206,115 @@ function formatDate(date: Date | null | undefined): string {
     minute: '2-digit',
     second: '2-digit',
   }).format(date);
+}
+
+function formatSafeConfigInfo(): string {
+  let configInfo = `\n⚙️ **設定情報**\n`;
+
+  // 基本機能設定
+  configInfo += `**基本機能:**\n`;
+  configInfo += `- キーワード検索: ${config.keywordEnabled ? '✅' : '❌'}\n`;
+  configInfo += `- リバーシ: ${config.reversiEnabled ? '✅' : '❌'}\n`;
+  configInfo += `- 自動単語: ${config.notingEnabled ? '✅' : '❌'}\n`;
+  configInfo += `- チャート: ${config.chartEnabled ? '✅' : '❌'}\n`;
+  configInfo += `- 時刻通知: ${config.timeSignalEnabled ? '✅' : '❌'}\n`;
+  configInfo += `- サーバー監視: ${config.serverMonitoring ? '✅' : '❌'}\n`;
+  configInfo += `- 絵文字チェック: ${
+    config.checkEmojisEnabled ? '✅' : '❌'
+  }\n`;
+
+  // ゲーム機能
+  configInfo += `**ゲーム機能:**\n`;
+  configInfo += `- 迷路: ${config.mazeEnable ? '✅' : '❌'}\n`;
+  configInfo += `- 投票: ${config.pollEnable ? '✅' : '❌'}\n`;
+
+  // 投稿設定
+  configInfo += `**投稿設定:**\n`;
+  configInfo += `- パブリック投稿制限: ${config.postNotPublic ? '✅' : '❌'}\n`;
+  configInfo += `- デフォルト公開範囲: ${
+    config.defaultVisibility || '未設定'
+  }\n`;
+
+  // AI機能設定
+  if (config.gemini) {
+    configInfo += `**AI機能:**\n`;
+    configInfo += `- Gemini: ${config.gemini.enabled ? '✅' : '❌'}\n`;
+    configInfo += `- モデル: ${config.gemini.model || '未設定'}\n`;
+    configInfo += `- 思考予算: ${config.gemini.thinkingBudget ?? '未設定'}\n`;
+
+    if (config.gemini.autoNote) {
+      configInfo += `- 自動ノート: ${
+        config.gemini.autoNote.enabled ? '✅' : '❌'
+      }\n`;
+      configInfo += `- 投稿確率: ${
+        config.gemini.autoNote.probability ?? '未設定'
+      }\n`;
+      configInfo += `- 投稿間隔: ${
+        config.gemini.autoNote.intervalMinutes ?? '未設定'
+      }分\n`;
+      configInfo += `- 夜間投稿無効: ${
+        config.gemini.autoNote.disableNightPosting ? '✅' : '❌'
+      }\n`;
+    }
+
+    if (config.gemini.randomTalk) {
+      configInfo += `- ランダムトーク: ${
+        config.gemini.randomTalk.enabled ? '✅' : '❌'
+      }\n`;
+      configInfo += `- 反応確率: ${
+        config.gemini.randomTalk.probability ?? '未設定'
+      }\n`;
+      configInfo += `- フォロー限定: ${
+        config.gemini.randomTalk.followingOnly ? '✅' : '❌'
+      }\n`;
+    }
+
+    if (config.gemini.chat) {
+      configInfo += `- チャット: ${config.gemini.chat.enabled ? '✅' : '❌'}\n`;
+      configInfo += `- Google検索連携: ${
+        config.gemini.chat.groundingWithGoogleSearch ? '✅' : '❌'
+      }\n`;
+    }
+  }
+
+  // 地震速報設定
+  if (config.earthquakeWarning) {
+    configInfo += `**地震速報:**\n`;
+    configInfo += `- 最小震度閾値: ${
+      config.earthquakeWarning.minIntensityThreshold ?? '未設定'
+    }\n`;
+    configInfo += `- 弱震時の最小規模: ${
+      config.earthquakeWarning.minMagunitudeForWeak ?? '未設定'
+    }\n`;
+  }
+
+  // 気圧監視設定
+  if (config.kiatsu) {
+    configInfo += `**気圧監視:**\n`;
+    configInfo += `- 最小投稿レベル: ${
+      config.kiatsu.minPostLevel ?? '未設定'
+    }\n`;
+    configInfo += `- 更新間隔: ${
+      config.kiatsu.updateIntervalMs
+        ? Math.floor(config.kiatsu.updateIntervalMs / 60000) + '分'
+        : '未設定'
+    }\n`;
+  }
+
+  // その他の機能
+  configInfo += `**その他:**\n`;
+  configInfo += `- 地震速報: ${config.earthquakeEnable ? '✅' : '❌'}\n`;
+  configInfo += `- 天気自動投稿時刻: ${
+    config.weatherAutoNoteHour ?? '未設定'
+  }時\n`;
+  configInfo += `- 天気地域設定: ${config.weatherAutoNotePref || '未設定'}\n`;
+
+  if (config.imagen) {
+    configInfo += `- Imagen: ${config.imagen.enabled ? '✅' : '❌'}\n`;
+    configInfo += `- Imagenモデル: ${config.imagen.model || '未設定'}\n`;
+  }
+
+  return configInfo;
 }
 
 export default class InfoModule extends Module {
@@ -269,7 +378,7 @@ export default class InfoModule extends Module {
     } catch (error) {
       console.error(
         'Error in info mentionHook:',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
       msg.reply('⚠️ 情報の取得中にエラーが発生しました。');
       return { reaction: '❌' };
@@ -282,7 +391,7 @@ export default class InfoModule extends Module {
     const precision = config.info?.precision ?? DEFAULT_CONFIG.precision;
 
     const loadedModules = this.ai.modules.sort((a, b) =>
-      a.name.localeCompare(b.name)
+      a.name.localeCompare(b.name),
     );
 
     let reply = `\n🖥️ **システム情報**\n`;
@@ -311,11 +420,11 @@ export default class InfoModule extends Module {
     reply += `\n🧠 **メモリ使用量**\n`;
     reply += `- RSS: ${formatMemoryUsage(mem.rss)}\n`;
     reply += `- ヒープ使用量: ${formatMemoryUsage(
-      mem.heapUsed
+      mem.heapUsed,
     )} / ${formatMemoryUsage(mem.heapTotal)}\n`;
     reply += `- 外部メモリ: ${formatMemoryUsage(mem.external)}\n`;
     reply += `- ヒープ使用率: ${((mem.heapUsed / mem.heapTotal) * 100).toFixed(
-      1
+      1,
     )}%\n`;
 
     reply += `\n💾 **データベース**\n`;
@@ -334,8 +443,11 @@ export default class InfoModule extends Module {
       reply += `- CPU: ${cpus[0].model} (${cpus.length}コア)\n`;
     }
     reply += `- メモリ: ${formatMemoryUsage(
-      os.totalmem() - os.freemem()
+      os.totalmem() - os.freemem(),
     )} / ${formatMemoryUsage(os.totalmem())}\n`;
+
+    // 設定情報を追加
+    reply += formatSafeConfigInfo();
 
     reply += `\n💡 このメッセージはマスターユーザーのみに表示されています`;
 
