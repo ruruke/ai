@@ -78,6 +78,7 @@ type AiChatHist = {
   isChat?: boolean;
   chatUserId?: string;
   timelineContext?: { before?: any[]; after?: any[] };
+  quotedFiles?: Base64File[];
 };
 
 type ApiErrorResponse = {
@@ -661,6 +662,66 @@ export default class extends Module {
   }
 
   @bindThis
+  private async getQuotedNoteFiles(quoteId: string): Promise<Base64File[]> {
+    try {
+      this.log('Getting files from quoted note: ' + quoteId);
+
+      const quotedNoteData = await this.ai.api<
+        Partial<Note & { files: any[] }>
+      >('notes/show', { noteId: quoteId });
+
+      let files: Base64File[] = [];
+      if (quotedNoteData && quotedNoteData.files) {
+        for (let i = 0; i < quotedNoteData.files.length; i++) {
+          let fileType: string | undefined;
+          let fileUrl: string | undefined;
+
+          if (quotedNoteData.files[i].hasOwnProperty('type')) {
+            fileType = quotedNoteData.files[i].type;
+          }
+
+          if (
+            quotedNoteData.files[i].hasOwnProperty('thumbnailUrl') &&
+            quotedNoteData.files[i].thumbnailUrl
+          ) {
+            fileUrl = quotedNoteData.files[i].thumbnailUrl;
+          } else if (
+            quotedNoteData.files[i].hasOwnProperty('url') &&
+            quotedNoteData.files[i].url
+          ) {
+            fileUrl = quotedNoteData.files[i].url;
+          }
+
+          if (fileType !== undefined && fileUrl !== undefined) {
+            try {
+              this.log('Quoted note fileUrl:' + fileUrl);
+              const file = await urlToBase64(fileUrl);
+              const base64file: Base64File = {
+                type: fileType,
+                base64: file,
+                url: fileUrl,
+              };
+              files.push(base64file);
+            } catch (err: unknown) {
+              if (err instanceof Error) {
+                this.log(
+                  `Failed to process quoted note file: ${err.name}\n${err.message}`
+                );
+              }
+            }
+          }
+        }
+      }
+
+      this.log(`Retrieved ${files.length} files from quoted note`);
+      return files;
+    } catch (error) {
+      this.log(`Error getting quoted note files: ${error}`);
+      return [];
+    }
+  }
+
+  @bindThis
   private async isFollowing(userId: string): Promise<boolean> {
     if (userId === this.ai.account.id) return true;
     try {
@@ -740,6 +801,7 @@ export default class extends Module {
             'ユーザーが与えた前情報である、引用された文章: ' + quotedNote.text,
         },
       ];
+      current.quotedFiles = await this.getQuotedNoteFiles(msg.quoteId);
     }
 
     const result = await this.handleAiChat(current, msg);
@@ -1118,6 +1180,13 @@ export default class extends Module {
       msg.id,
       msg.isChat
     );
+
+    // 引用先ファイルがある場合は統合
+    if (exist.quotedFiles && exist.quotedFiles.length > 0) {
+      this.log(`Adding ${exist.quotedFiles.length} quoted files to context`);
+      base64Files.push(...exist.quotedFiles);
+    }
+
     text = await this.genTextByGemini(aiChat, base64Files);
 
     if (this.isApiError(text)) {
