@@ -286,161 +286,209 @@ function formatBooleanSetting(value: boolean | undefined): string {
 }
 
 function formatBasicFeatures(): string {
-  let info = `${CONFIG_LABELS.sections.basicFeatures}\n`;
-  info += `- ${CONFIG_LABELS.basic.keywordEnabled}: ${formatBooleanSetting(
-    config.keywordEnabled
-  )}\n`;
-  info += `- ${CONFIG_LABELS.basic.reversiEnabled}: ${formatBooleanSetting(
-    config.reversiEnabled
-  )}\n`;
-  info += `- ${CONFIG_LABELS.basic.notingEnabled}: ${formatBooleanSetting(
-    config.notingEnabled
-  )}\n`;
-  info += `- ${CONFIG_LABELS.basic.chartEnabled}: ${formatBooleanSetting(
-    config.chartEnabled
-  )}\n`;
-  info += `- ${CONFIG_LABELS.basic.timeSignalEnabled}: ${formatBooleanSetting(
-    config.timeSignalEnabled
-  )}\n`;
-  info += `- ${CONFIG_LABELS.basic.serverMonitoring}: ${formatBooleanSetting(
-    config.serverMonitoring
-  )}\n`;
-  info += `- ${CONFIG_LABELS.basic.checkEmojisEnabled}: ${formatBooleanSetting(
-    config.checkEmojisEnabled
-  )}\n`;
-  return info;
+  const lines: string[] = [
+    CONFIG_LABELS.sections.basicFeatures,
+    `- ${CONFIG_LABELS.basic.keywordEnabled}: ${formatBooleanSetting(
+      config.keywordEnabled
+    )}`,
+    `- ${CONFIG_LABELS.basic.reversiEnabled}: ${formatBooleanSetting(
+      config.reversiEnabled
+    )}`,
+    `- ${CONFIG_LABELS.basic.notingEnabled}: ${formatBooleanSetting(
+      config.notingEnabled
+    )}`,
+    `- ${CONFIG_LABELS.basic.chartEnabled}: ${formatBooleanSetting(
+      config.chartEnabled
+    )}`,
+    `- ${CONFIG_LABELS.basic.timeSignalEnabled}: ${formatBooleanSetting(
+      config.timeSignalEnabled
+    )}`,
+    `- ${CONFIG_LABELS.basic.serverMonitoring}: ${formatBooleanSetting(
+      config.serverMonitoring
+    )}`,
+    `- ${CONFIG_LABELS.basic.checkEmojisEnabled}: ${formatBooleanSetting(
+      config.checkEmojisEnabled
+    )}`,
+  ];
+  return lines.join('\n') + '\n';
 }
 
 function formatGameFeatures(): string {
-  let info = `${CONFIG_LABELS.sections.gameFeatures}\n`;
-  info += `- ${CONFIG_LABELS.game.mazeEnable}: ${formatBooleanSetting(
-    config.mazeEnable
-  )}\n`;
-  info += `- ${CONFIG_LABELS.game.pollEnable}: ${formatBooleanSetting(
-    config.pollEnable
-  )}\n`;
-  return info;
+  const lines: string[] = [
+    CONFIG_LABELS.sections.gameFeatures,
+    `- ${CONFIG_LABELS.game.mazeEnable}: ${formatBooleanSetting(
+      config.mazeEnable
+    )}`,
+    `- ${CONFIG_LABELS.game.pollEnable}: ${formatBooleanSetting(
+      config.pollEnable
+    )}`,
+  ];
+  return lines.join('\n') + '\n';
 }
 
 function formatPostSettings(): string {
-  let info = `${CONFIG_LABELS.sections.postSettings}\n`;
-  info += `- ${CONFIG_LABELS.post.postNotPublic}: ${formatBooleanSetting(
-    config.postNotPublic
-  )}\n`;
-  info += `- ${CONFIG_LABELS.post.defaultVisibility}: ${safeConfigValue(
-    config.defaultVisibility
-  )}\n`;
-  return info;
+  const lines: string[] = [
+    CONFIG_LABELS.sections.postSettings,
+    `- ${CONFIG_LABELS.post.postNotPublic}: ${formatBooleanSetting(
+      config.postNotPublic
+    )}`,
+    `- ${CONFIG_LABELS.post.defaultVisibility}: ${safeConfigValue(
+      config.defaultVisibility
+    )}`,
+  ];
+  return lines.join('\n') + '\n';
 }
 
 function formatAIFeatures(): string {
   if (!config.gemini) return '';
 
-  let info = `${CONFIG_LABELS.sections.aiFeatures}\n`;
-  info += `- ${CONFIG_LABELS.ai.enabled}: ${formatBooleanSetting(
-    config.gemini.enabled
-  )}\n`;
-  info += `- ${CONFIG_LABELS.ai.model}: ${safeConfigValue(
-    config.gemini.model
-  )}\n`;
-  info += `- ${CONFIG_LABELS.ai.thinkingBudget}: ${safeConfigValue(
-    config.gemini.thinkingBudget
-  )}\n`;
+  const lines: string[] = [CONFIG_LABELS.sections.aiFeatures];
+
+  lines.push(
+    `- ${CONFIG_LABELS.ai.enabled}: ${formatBooleanSetting(
+      config.gemini.enabled
+    )}`
+  );
+  lines.push(
+    `- ${CONFIG_LABELS.ai.model}: ${safeConfigValue(config.gemini.model)}`
+  );
+  lines.push(
+    `- ${CONFIG_LABELS.ai.thinkingBudget}: ${safeConfigValue(
+      config.gemini.thinkingBudget
+    )}`
+  );
 
   if (config.gemini.autoNote) {
-    info += `- ${CONFIG_LABELS.ai.autoNoteEnabled}: ${formatBooleanSetting(
-      config.gemini.autoNote.enabled
-    )}\n`;
-    info += `- ${CONFIG_LABELS.ai.autoNoteProbability}: ${safeConfigValue(
-      config.gemini.autoNote.probability
-    )}\n`;
-    info += `- ${CONFIG_LABELS.ai.autoNoteInterval}: ${safeConfigValue(
-      config.gemini.autoNote.intervalMinutes
-    )}分\n`;
-    info += `- ${CONFIG_LABELS.ai.autoNoteDisableNight}: ${formatBooleanSetting(
-      config.gemini.autoNote.disableNightPosting
-    )}\n`;
+    lines.push(
+      `- ${CONFIG_LABELS.ai.autoNoteEnabled}: ${formatBooleanSetting(
+        config.gemini.autoNote.enabled
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.ai.autoNoteProbability}: ${safeConfigValue(
+        config.gemini.autoNote.probability
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.ai.autoNoteInterval}: ${safeConfigValue(
+        config.gemini.autoNote.intervalMinutes
+      )}分`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.ai.autoNoteDisableNight}: ${formatBooleanSetting(
+        config.gemini.autoNote.disableNightPosting
+      )}`
+    );
   }
 
   if (config.gemini.randomTalk) {
-    info += `- ${CONFIG_LABELS.ai.randomTalkEnabled}: ${formatBooleanSetting(
-      config.gemini.randomTalk.enabled
-    )}\n`;
-    info += `- ${CONFIG_LABELS.ai.randomTalkProbability}: ${safeConfigValue(
-      config.gemini.randomTalk.probability
-    )}\n`;
-    info += `- ${
-      CONFIG_LABELS.ai.randomTalkFollowingOnly
-    }: ${formatBooleanSetting(config.gemini.randomTalk.followingOnly)}\n`;
+    lines.push(
+      `- ${CONFIG_LABELS.ai.randomTalkEnabled}: ${formatBooleanSetting(
+        config.gemini.randomTalk.enabled
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.ai.randomTalkProbability}: ${safeConfigValue(
+        config.gemini.randomTalk.probability
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.ai.randomTalkFollowingOnly}: ${formatBooleanSetting(
+        config.gemini.randomTalk.followingOnly
+      )}`
+    );
   }
 
   if (config.gemini.chat) {
-    info += `- ${CONFIG_LABELS.ai.chatEnabled}: ${formatBooleanSetting(
-      config.gemini.chat.enabled
-    )}\n`;
-    info += `- ${CONFIG_LABELS.ai.chatGrounding}: ${formatBooleanSetting(
-      config.gemini.chat.groundingWithGoogleSearch
-    )}\n`;
+    lines.push(
+      `- ${CONFIG_LABELS.ai.chatEnabled}: ${formatBooleanSetting(
+        config.gemini.chat.enabled
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.ai.chatGrounding}: ${formatBooleanSetting(
+        config.gemini.chat.groundingWithGoogleSearch
+      )}`
+    );
   }
 
-  return info;
+  return lines.join('\n') + '\n';
 }
 
 function formatEarthquakeSettings(): string {
-  if (!config.earthquakeWarning) return '';
+  const lines: string[] = [CONFIG_LABELS.sections.earthquake];
 
-  let info = `${CONFIG_LABELS.sections.earthquake}\n`;
-  info += `- ${CONFIG_LABELS.earthquake.minIntensity}: ${safeConfigValue(
-    config.earthquakeWarning.minIntensityThreshold
-  )}\n`;
-  info += `- ${CONFIG_LABELS.earthquake.minMagnitude}: ${safeConfigValue(
-    config.earthquakeWarning.minMagunitudeForWeak
-  )}\n`;
-  return info;
+  // 地震速報機能の有効/無効
+  lines.push(
+    `- ${CONFIG_LABELS.others.earthquakeEnable}: ${formatBooleanSetting(
+      config.earthquakeEnable
+    )}`
+  );
+
+  // 地震警報の詳細設定（設定されている場合のみ）
+  if (config.earthquakeWarning) {
+    lines.push(
+      `- ${CONFIG_LABELS.earthquake.minIntensity}: ${safeConfigValue(
+        config.earthquakeWarning.minIntensityThreshold
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.earthquake.minMagnitude}: ${safeConfigValue(
+        config.earthquakeWarning.minMagunitudeForWeak
+      )}`
+    );
+  }
+
+  return lines.join('\n') + '\n';
 }
 
 function formatPressureSettings(): string {
   if (!config.kiatsu) return '';
 
-  let info = `${CONFIG_LABELS.sections.pressure}\n`;
-  info += `- ${CONFIG_LABELS.pressure.minPostLevel}: ${safeConfigValue(
-    config.kiatsu.minPostLevel
-  )}\n`;
-
   const updateIntervalMinutes = config.kiatsu.updateIntervalMs
     ? Math.floor(config.kiatsu.updateIntervalMs / 60000) + '分'
     : DEFAULTS.notSet;
-  info += `- ${CONFIG_LABELS.pressure.updateInterval}: ${updateIntervalMinutes}\n`;
 
-  return info;
+  const lines: string[] = [
+    CONFIG_LABELS.sections.pressure,
+    `- ${CONFIG_LABELS.pressure.minPostLevel}: ${safeConfigValue(
+      config.kiatsu.minPostLevel
+    )}`,
+    `- ${CONFIG_LABELS.pressure.updateInterval}: ${updateIntervalMinutes}`,
+  ];
+
+  return lines.join('\n') + '\n';
 }
 
 function formatOtherSettings(): string {
-  let info = `${CONFIG_LABELS.sections.others}\n`;
-  info += `- ${CONFIG_LABELS.others.earthquakeEnable}: ${formatBooleanSetting(
-    config.earthquakeEnable
-  )}\n`;
+  const lines: string[] = [CONFIG_LABELS.sections.others];
 
   const weatherHour =
     config.weatherAutoNoteHour !== null &&
     config.weatherAutoNoteHour !== undefined
       ? `${config.weatherAutoNoteHour}時`
       : DEFAULTS.notSet;
-  info += `- ${CONFIG_LABELS.others.weatherAutoNoteHour}: ${weatherHour}\n`;
-  info += `- ${CONFIG_LABELS.others.weatherAutoNotePref}: ${safeConfigValue(
-    config.weatherAutoNotePref
-  )}\n`;
+  lines.push(`- ${CONFIG_LABELS.others.weatherAutoNoteHour}: ${weatherHour}`);
+  lines.push(
+    `- ${CONFIG_LABELS.others.weatherAutoNotePref}: ${safeConfigValue(
+      config.weatherAutoNotePref
+    )}`
+  );
 
   if (config.imagen) {
-    info += `- ${CONFIG_LABELS.others.imagenEnabled}: ${formatBooleanSetting(
-      config.imagen.enabled
-    )}\n`;
-    info += `- ${CONFIG_LABELS.others.imagenModel}: ${safeConfigValue(
-      config.imagen.model
-    )}\n`;
+    lines.push(
+      `- ${CONFIG_LABELS.others.imagenEnabled}: ${formatBooleanSetting(
+        config.imagen.enabled
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.others.imagenModel}: ${safeConfigValue(
+        config.imagen.model
+      )}`
+    );
   }
 
-  return info;
+  return lines.join('\n') + '\n';
 }
 
 function formatSafeConfigInfo(): string {
