@@ -251,6 +251,7 @@ const CONFIG_LABELS = {
     chatGrounding: 'Google検索連携',
   },
   earthquake: {
+    enable: '地震速報',
     minIntensity: '最小震度閾値',
     minMagnitude: '弱震時の最小規模',
   },
@@ -259,7 +260,6 @@ const CONFIG_LABELS = {
     updateInterval: '更新間隔',
   },
   others: {
-    earthquakeEnable: '地震速報',
     weatherAutoNoteHour: '天気自動投稿時刻',
     weatherAutoNotePref: '天気地域設定',
     imagenEnabled: 'Imagen',
@@ -420,8 +420,8 @@ function formatEarthquakeSettings(): string {
 
   // 地震速報機能の有効/無効
   lines.push(
-    `- ${CONFIG_LABELS.others.earthquakeEnable}: ${formatBooleanSetting(
-      config.earthquakeEnable
+    `- ${CONFIG_LABELS.earthquake.enable}: ${formatBooleanSetting(
+      config.earthquakeWarning?.enabled
     )}`
   );
 

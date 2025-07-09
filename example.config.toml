@@ -101,6 +101,7 @@ groundingWithGoogleSearch = true  # Google検索による情報補強
 
 # 地震速報設定
 [earthquakeWarning]
+enabled = true
 minIntensityThreshold = 3 # 震度
 minMagunitudeForWeak = 4.0 # 震源の規模  (注意: APIの仕様に合わせて意図的にtypoを保持)
 websocketReconnectMaxAttempts = 10

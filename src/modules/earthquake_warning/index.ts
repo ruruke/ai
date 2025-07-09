@@ -101,7 +101,7 @@ export default class extends Module {
 
   @bindThis
   public install() {
-    if (!config.earthquakeEnable) {
+    if (!config.earthquakeWarning?.enabled) {
       this.log('地震警報モジュールは無効になっています。');
       return {};
     }

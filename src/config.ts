@@ -56,6 +56,7 @@ type Config = {
   postNotPublic?: boolean;
   defaultVisibility?: string;
   earthquakeWarning?: {
+    enabled?: boolean;
     minIntensityThreshold?: number;
     minMagunitudeForWeak?: number;
     websocketReconnectMaxAttempts?: number;
@@ -75,7 +76,6 @@ type Config = {
   };
   weatherAutoNotePref?: string;
   weatherAutoNoteHour?: number;
-  earthquakeEnable?: boolean;
   imagen?: {
     enabled?: boolean;
     apiKey?: string;
