@@ -33,8 +33,21 @@ Misskey用AI Bot「藍」のリポジトリ `lqvp/ai` で現在開かれてい�
   - その他の機能設定
 
 **実装箇所:**
-- `src/modules/info/index.ts` に `formatSafeConfigInfo()` 関数を追加
-- `formatMasterReply()` メソッドで設定情報を表示
+- `src/modules/info/index.ts` に設定情報表示機能を追加
+
+**コード品質改善:**
+PRレビューを受けて以下のリファクタリングを実施：
+- 長い関数（100行+）を機能別の小さな関数に分割：
+  - `formatBasicFeatures()` - 基本機能設定
+  - `formatGameFeatures()` - ゲーム機能設定
+  - `formatPostSettings()` - 投稿設定
+  - `formatAIFeatures()` - AI機能設定
+  - `formatEarthquakeSettings()` - 地震速報設定
+  - `formatPressureSettings()` - 気圧監視設定
+  - `formatOtherSettings()` - その他の設定
+- ハードコーディングされた文字列を`CONFIG_LABELS`定数オブジェクトに集約
+- `safeConfigValue()`と`formatBooleanSetting()`ヘルパー関数で一貫したnull/undefined処理
+- ビルド・lint・format全て成功確認済み
 
 ## すぐに実装可能なIssue
 
