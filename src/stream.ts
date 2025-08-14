@@ -24,12 +24,37 @@ export default class Stream extends EventEmitter {
     this.state = 'initializing';
     this.buffer = [];
 
+    // WebSocket接続オプションを設定
+    const wsOptions = {
+      WebSocket: WebSocket,
+      // User-Agentを設定（WebSocket接続時にヘッダーとして送信）
+      ...(config.userAgent?.websocket && {
+        // reconnecting-websocketライブラリでは直接User-Agentを設定できないため、
+        // WebSocketインスタンスをカスタマイズ
+        WebSocket: class extends WebSocket {
+          constructor(
+            url: string,
+            protocols?: string | string[],
+            options?: any
+          ) {
+            super(url, protocols, {
+              ...options,
+              headers: {
+                ...options?.headers,
+                'User-Agent':
+                  config.userAgent?.websocket ||
+                  'Misskey-Ai-Bot(https://github.com/lqvp/ai)',
+              },
+            });
+          }
+        },
+      }),
+    };
+
     this.stream = new ReconnectingWebsocket(
       `${config.wsUrl}/streaming?i=${config.i}`,
       [],
-      {
-        WebSocket: WebSocket,
-      }
+      wsOptions
     );
     this.stream.addEventListener('open', this.onOpen);
     this.stream.addEventListener('close', this.onClose);

@@ -75,6 +75,11 @@ promiseRetry(
         json: {
           i: config.i,
         },
+        headers: {
+          'User-Agent':
+            config.userAgent?.http ||
+            'Misskey-Ai-Bot(https://github.com/lqvp/ai)',
+        },
       })
       .json<User>()
       .catch(retry);

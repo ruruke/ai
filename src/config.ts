@@ -7,6 +7,10 @@ type Config = {
   master?: string;
   wsUrl: string;
   apiUrl: string;
+  userAgent?: {
+    http?: string;
+    websocket?: string;
+  };
   keywordEnabled: boolean;
   reversiEnabled: boolean;
   notingEnabled: boolean;

@@ -17,6 +17,15 @@ export default class APIClient {
   }
 
   /**
+   * デフォルトのUser-Agentを取得
+   */
+  private getDefaultUserAgent(): string {
+    return (
+      config.userAgent?.http || 'Misskey-Ai-Bot(https://github.com/lqvp/ai)'
+    );
+  }
+
+  /**
    * ファイルをドライブにアップロードします
    */
   @bindThis
@@ -36,6 +45,9 @@ export default class APIClient {
         .post({
           url: `${config.apiUrl}/drive/files/create`,
           body: form,
+          headers: {
+            'User-Agent': this.getDefaultUserAgent(),
+          },
         })
         .json();
       return res;
@@ -83,6 +95,9 @@ export default class APIClient {
     return got
       .post(`${config.apiUrl}/${endpoint}`, {
         json: { i: config.i, ...param },
+        headers: {
+          'User-Agent': this.getDefaultUserAgent(),
+        },
       })
       .json<T>();
   }

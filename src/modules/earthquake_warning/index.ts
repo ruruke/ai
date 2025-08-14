@@ -119,7 +119,18 @@ export default class extends Module {
   private connectWebSocket(): void {
     try {
       this.log('WebSocketに接続しています...');
-      this.ws = new WebSocket(this.WEBSOCKET_URL);
+
+      // WebSocket接続オプションを設定
+      const wsOptions: any = {};
+
+      // User-Agentを設定（設定ファイルから取得）
+      if (config.userAgent?.websocket) {
+        wsOptions.headers = {
+          'User-Agent': config.userAgent?.websocket,
+        };
+      }
+
+      this.ws = new WebSocket(this.WEBSOCKET_URL, [], wsOptions);
 
       // 安全なイベントリスナーを設定
       this.ws.on('open', this.safeEventHandler(this.onWebSocketOpen));

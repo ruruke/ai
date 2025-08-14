@@ -13,6 +13,15 @@ i = "token"
 aiName = ["藍", "三須木"]
 master = "admin" # ローカルの管理者のusername
 
+# HTTP API と WebSocket 接続設定
+# これらの設定は、外部APIやWebSocket接続時に送信されるUser-Agentを制御します
+# サーバー管理者がボットの識別を容易にし、適切なレート制限を設定できるようになります
+[http]
+userAgent = "藍 (Ai) Bot/3.1.9-lqvp (+https://github.com/your-repo/ai-bot)"
+
+[websocket]
+userAgent = "藍 (Ai) Bot/3.1.9-lqvp (+https://github.com/your-repo/ai-bot)"
+
 # 基本機能の有効/無効
 notingEnabled = true # 自動単語機能
 keywordEnabled = true # キーワード検索
