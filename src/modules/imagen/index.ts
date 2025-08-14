@@ -146,9 +146,20 @@ export default class extends Module {
 
     // 画像ファイルを追加
     for (const file of files) {
+      // デバッグ情報を追加
+      this.log(
+        `Processing file: type=${file.type}, base64 length=${file.base64.length}`
+      );
+
+      // MIMEタイプを正規化（WebPの場合はimage/webpに統一）
+      let normalizedMimeType = file.type;
+      if (file.type === 'image/webp' || file.type === 'image/x-webp') {
+        normalizedMimeType = 'image/webp';
+      }
+
       parts.push({
         inlineData: {
-          mimeType: file.type,
+          mimeType: normalizedMimeType,
           data: file.base64,
         },
       });
@@ -161,12 +172,35 @@ export default class extends Module {
         },
       ],
       generationConfig: {
-        responseModalities: ['IMAGE'],
+        responseModalities: ['TEXT', 'IMAGE'],
       },
     };
 
     try {
       this.log(`Gemini API request: ${prompt} with ${files.length} images`);
+      this.log(
+        `Request body structure: ${JSON.stringify({
+          contentsCount: requestBody.contents.length,
+          partsCount: requestBody.contents[0].parts.length,
+          hasText: requestBody.contents[0].parts.some((p) => p.text),
+          hasImages: requestBody.contents[0].parts.some((p) => p.inlineData),
+          responseModalities: requestBody.generationConfig.responseModalities,
+        })}`
+      );
+
+      // 最初の画像のBase64データの最初の100文字をログ出力（デバッグ用）
+      const firstImage = requestBody.contents[0].parts.find(
+        (p) => p.inlineData
+      );
+      if (firstImage?.inlineData) {
+        this.log(`First image MIME type: ${firstImage.inlineData.mimeType}`);
+        this.log(
+          `First image base64 preview: ${firstImage.inlineData.data.substring(
+            0,
+            100
+          )}...`
+        );
+      }
 
       const response = await got
         .post(apiUrl, {
@@ -187,6 +221,17 @@ export default class extends Module {
       return response;
     } catch (error: any) {
       this.log(`Gemini API error: ${error}`);
+
+      // より詳細なエラー情報を取得
+      if (error?.response) {
+        try {
+          const errorBody = await error.response.text();
+          this.log(`Error response body: ${errorBody}`);
+        } catch (e) {
+          this.log(`Could not read error response body: ${e}`);
+        }
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       return {
         error: {
@@ -286,9 +331,28 @@ export default class extends Module {
           if (fileType !== undefined && fileUrl !== undefined) {
             try {
               this.log('Processing file: ' + fileUrl);
+              this.log(`File type: ${fileType}`);
+
               const base64Data = await urlToBase64(fileUrl);
+              this.log(`Base64 data length: ${base64Data.length}`);
+
+              // MIMEタイプを正規化
+              let normalizedType = fileType;
+              if (fileType === 'image/webp' || fileType === 'image/x-webp') {
+                normalizedType = 'image/webp';
+              } else if (
+                fileType === 'image/jpeg' ||
+                fileType === 'image/jpg'
+              ) {
+                normalizedType = 'image/jpeg';
+              } else if (fileType === 'image/png') {
+                normalizedType = 'image/png';
+              }
+
+              this.log(`Normalized MIME type: ${normalizedType}`);
+
               const base64file: Base64File = {
-                type: fileType,
+                type: normalizedType,
                 base64: base64Data,
               };
               files.push(base64file);
@@ -344,9 +408,28 @@ export default class extends Module {
           if (fileType !== undefined && fileUrl !== undefined) {
             try {
               this.log('Quoted note fileUrl:' + fileUrl);
+              this.log(`Quoted file type: ${fileType}`);
+
               const base64Data = await urlToBase64(fileUrl);
+              this.log(`Quoted file base64 length: ${base64Data.length}`);
+
+              // MIMEタイプを正規化
+              let normalizedType = fileType;
+              if (fileType === 'image/webp' || fileType === 'image/x-webp') {
+                normalizedType = 'image/webp';
+              } else if (
+                fileType === 'image/jpeg' ||
+                fileType === 'image/jpg'
+              ) {
+                normalizedType = 'image/jpeg';
+              } else if (fileType === 'image/png') {
+                normalizedType = 'image/png';
+              }
+
+              this.log(`Quoted file normalized MIME type: ${normalizedType}`);
+
               const base64file: Base64File = {
-                type: fileType,
+                type: normalizedType,
                 base64: base64Data,
               };
               files.push(base64file);
