@@ -35,7 +35,10 @@ type Base64File = {
 type GeminiOptions = {
   contents?: GeminiContents[];
   systemInstruction?: GeminiSystemInstruction;
-  tools?: [{}];
+  tools?: Array<{
+    url_context?: {};
+    google_search?: {};
+  }>;
   generationConfig?: {
     thinkingConfig?: {
       thinkingBudget?: number;
@@ -267,7 +270,8 @@ export default class extends Module {
   @bindThis
   private async genTextByGemini(
     aiChat: AiChat,
-    files: Base64File[]
+    files: Base64File[],
+    msg?: Message
   ): Promise<GeminiApiResponse> {
     this.log('Generate Text By Gemini...');
     let parts: GeminiParts = [];
@@ -297,6 +301,12 @@ export default class extends Module {
     if (aiChat.friendName != undefined) {
       systemInstructionText +=
         'なお、会話相手の名前は' + aiChat.friendName + 'とする。';
+    }
+
+    // masterユーザーかどうかの情報を追加
+    if (msg && this.isMasterUser(msg)) {
+      systemInstructionText +=
+        'なお、このユーザーはあなたのご主人様(master)です。特別な敬意と配慮を持って対応してください。';
     }
     // ランダムトーク機能(利用者が意図(メンション)せず発動)の場合、ちょっとだけ配慮しておく
     if (!aiChat.fromMention) {
@@ -338,9 +348,10 @@ export default class extends Module {
       }
     }
 
-    // URLから情報を取得
+    // URLから情報を取得（フォールバック用）
     let youtubeURLs: string[] = [];
     let hasYoutubeUrl = false;
+    let fallbackUrlInfo = '';
 
     if (aiChat.question !== undefined) {
       const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
@@ -359,41 +370,41 @@ export default class extends Module {
             continue;
           }
 
+          // フォールバック用のURL情報を収集
           let result: unknown = null;
           try {
             result = await urlToJson(url[0]);
           } catch (err: unknown) {
-            systemInstructionText +=
-              '補足として提供されたURLは無効でした:URL=>' + url[0];
+            fallbackUrlInfo +=
+              '補足として提供されたURLは無効でした:URL=>' + url[0] + '\n';
             this.log('Skip url becase error in urlToJson');
             continue;
           }
           const urlpreview: UrlPreview = result as UrlPreview;
           if (urlpreview.title) {
-            systemInstructionText +=
+            fallbackUrlInfo +=
               '補足として提供されたURLの情報は次の通り:URL=>' +
               urlpreview.url +
               'サイト名(' +
               urlpreview.sitename +
               ')、';
             if (!urlpreview.sensitive) {
-              systemInstructionText +=
+              fallbackUrlInfo +=
                 'タイトル(' +
                 urlpreview.title +
                 ')、' +
                 '説明(' +
                 urlpreview.description +
                 ')、' +
-                '質問にあるURLとサイト名・タイトル・説明を組み合わせ、回答の参考にすること。';
+                '質問にあるURLとサイト名・タイトル・説明を組み合わせ、回答の参考にすること。\n';
               this.log('urlpreview.sitename:' + urlpreview.sitename);
               this.log('urlpreview.title:' + urlpreview.title);
               this.log('urlpreview.description:' + urlpreview.description);
             } else {
-              systemInstructionText +=
-                'これはセンシティブなURLの可能性があるため、質問にあるURLとサイト名のみで、回答の参考にすること(使わなくても良い)。';
+              fallbackUrlInfo +=
+                'これはセンシティブなURLの可能性があるため、質問にあるURLとサイト名のみで、回答の参考にすること(使わなくても良い)。\n';
             }
           } else {
-            // 多分ここにはこないが念のため
             this.log('urlpreview.title is nothing');
           }
         }
@@ -425,6 +436,12 @@ export default class extends Module {
           }
         }
       }
+    }
+
+    // フォールバック用のURL情報を追加（後でURLコンテキストツールの使用状況に応じて制御）
+    if (fallbackUrlInfo) {
+      systemInstructionText +=
+        '\n\n【フォールバックURL情報】\n' + fallbackUrlInfo;
     }
 
     const systemInstruction: GeminiSystemInstruction = {
@@ -473,6 +490,31 @@ export default class extends Module {
       systemInstruction: systemInstruction,
     };
 
+    // URLコンテキストツールが使用される場合、質問文を調整
+    if (geminiOptions.tools?.some((tool) => tool.url_context)) {
+      // URLコンテキストツールが使用される場合、質問文にURLを明示的に含める
+      const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+      const urlarray = [...aiChat.question.matchAll(urlexp)];
+      if (urlarray.length > 0) {
+        const nonYoutubeUrls = urlarray.filter(
+          (url) => !this.isYoutubeUrl(url[0])
+        );
+        if (nonYoutubeUrls.length > 0) {
+          // 最初のユーザーメッセージの質問文を更新
+          if (contents.length > 0) {
+            const lastContent = contents[contents.length - 1];
+            if (lastContent.role === 'user' && lastContent.parts.length > 0) {
+              const questionText = `${
+                aiChat.question
+              }\n\n参考URL:\n${nonYoutubeUrls.map((url) => url[0]).join('\n')}`;
+              lastContent.parts[0].text = questionText;
+              this.log('URLコンテキスト用に質問文を調整しました');
+            }
+          }
+        }
+      }
+    }
+
     // thinkingConfigの設定
     if (config.gemini?.thinkingBudget !== undefined) {
       geminiOptions.generationConfig = {
@@ -482,9 +524,51 @@ export default class extends Module {
       };
     }
 
+    // ツールの設定
+    if (geminiOptions.tools === undefined) {
+      geminiOptions.tools = [];
+    }
+
+    // URLがある場合はURLコンテキストを追加
+    if (aiChat.question !== undefined && aiChat.question.length > 0) {
+      const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+      const urlarray = [...aiChat.question.matchAll(urlexp)];
+
+      if (urlarray.length > 0) {
+        // YouTube以外のURLがある場合はURLコンテキストツールを追加
+        const hasNonYoutubeUrl = urlarray.some(
+          (url) => !this.isYoutubeUrl(url[0])
+        );
+        if (hasNonYoutubeUrl) {
+          geminiOptions.tools.push({ url_context: {} });
+          this.log('URLコンテキストツールを有効化しました');
+
+          // URLコンテキストツールが使用される場合、フォールバック情報をsystemInstructionTextから削除
+          if (fallbackUrlInfo) {
+            systemInstructionText = systemInstructionText.replace(
+              '\n\n【フォールバックURL情報】\n' + fallbackUrlInfo,
+              ''
+            );
+            this.log(
+              'フォールバックURL情報をsystemInstructionTextから削除しました'
+            );
+          }
+
+          // URLコンテキストツールが使用される場合、フォールバック情報をクリア
+          fallbackUrlInfo = '';
+        }
+      }
+    }
+
     // YouTubeURLがある場合はグラウンディングを無効化
     if (aiChat.grounding && !hasYoutubeUrl) {
-      geminiOptions.tools = [{ google_search: {} }];
+      geminiOptions.tools.push({ google_search: {} });
+      this.log('Google Searchツールを有効化しました');
+    }
+
+    // ツールが設定されているかログ出力
+    if (geminiOptions.tools.length > 0) {
+      this.log(`使用するツール: ${JSON.stringify(geminiOptions.tools)}`);
     }
 
     let options = {
@@ -494,7 +578,7 @@ export default class extends Module {
       },
       json: geminiOptions,
     };
-    this.log(JSON.stringify(options));
+    // this.log(JSON.stringify(options));
     let res_data: any = null;
     let responseText: string = '';
     try {
@@ -588,6 +672,55 @@ export default class extends Module {
           }
         }
         responseText += groundingMetadata;
+
+        // URLコンテキストの結果を処理
+        let urlContextMetadata = '';
+        let hasSuccessfulUrlContext = false;
+
+        // URLコンテキストツールが使用されている場合の処理
+        if (geminiOptions.tools?.some((tool) => tool.url_context)) {
+          if (res_data.candidates[0].hasOwnProperty('url_context_metadata')) {
+            if (
+              res_data.candidates[0].url_context_metadata.hasOwnProperty(
+                'url_metadata'
+              )
+            ) {
+              const urlMetadata =
+                res_data.candidates[0].url_context_metadata.url_metadata;
+              if (urlMetadata && urlMetadata.length > 0) {
+                // URLコンテキストが成功している場合は、フォールバック情報は不要
+                const successfulUrls = urlMetadata.filter(
+                  (metadata: any) =>
+                    metadata.url_retrieval_status ===
+                    'URL_RETRIEVAL_STATUS_SUCCESS'
+                );
+
+                if (successfulUrls.length > 0) {
+                  hasSuccessfulUrlContext = true;
+                  // URLコンテキストが成功している場合は、フォールバック情報をクリア
+                  fallbackUrlInfo = '';
+
+                  // 成功したURLの情報を表示
+                  urlContextMetadata += '\n【参考URL】\n';
+                  successfulUrls.forEach((metadata: any, index: number) => {
+                    urlContextMetadata += `参考URL(${index + 1}): ${
+                      metadata.retrieved_url
+                    }\n`;
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        responseText += urlContextMetadata;
+
+        // URLコンテキストが失敗した場合のみフォールバック情報を追加
+        if (!hasSuccessfulUrlContext && fallbackUrlInfo) {
+          responseText +=
+            '\n【フォールバックURL情報（URLコンテキストが失敗したため）】\n' +
+            fallbackUrlInfo;
+        }
       }
     } catch (err: unknown) {
       this.log('Error By Call Gemini');
@@ -738,6 +871,11 @@ export default class extends Module {
       );
       return false;
     }
+  }
+
+  @bindThis
+  private isMasterUser(msg: Message): boolean {
+    return msg.user.username === config.master && msg.user.host === null;
   }
 
   @bindThis
@@ -1187,7 +1325,7 @@ export default class extends Module {
       base64Files.push(...exist.quotedFiles);
     }
 
-    text = await this.genTextByGemini(aiChat, base64Files);
+    text = await this.genTextByGemini(aiChat, base64Files, msg);
 
     if (this.isApiError(text)) {
       this.log('The result is invalid due to an HTTP error.');
