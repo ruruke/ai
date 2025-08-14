@@ -306,8 +306,12 @@ export default class extends Module {
     // masterユーザーかどうかの情報を追加
     if (msg && this.isMasterUser(msg)) {
       systemInstructionText +=
-        'なお、このユーザーはあなたのご主人様(master)です。特別な敬意と配慮を持って対応してください。';
+        'なお、このユーザーはあなたのご主人様(master)です。特別な敬意と配慮を持って対応してください。(true)';
+    } else {
+      systemInstructionText +=
+        'なお、このユーザーはあなたのご主人様(master)ではありません。(false)';
     }
+
     // ランダムトーク機能(利用者が意図(メンション)せず発動)の場合、ちょっとだけ配慮しておく
     if (!aiChat.fromMention) {
       systemInstructionText +=
