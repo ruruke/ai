@@ -246,7 +246,7 @@ export default class extends Module {
       });
 
       this.log(`Video generation completed for: ${prompt}`);
-      return { reaction: 'like' };
+      return { reaction: '✅' };
     } catch (error) {
       this.log(`Unexpected error during video generation: ${error}`);
       msg.reply('動画生成中に予期しないエラーが発生しました。');
