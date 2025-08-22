@@ -82,7 +82,7 @@ export default class extends Module {
       return { error: 'APIキーが設定されていません' };
     }
 
-    const model = config.veo?.model || 'veo-3.0-generate-preview';
+    const model = config.veo?.model || 'veo-3.0-fast-generate-preview';
     const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
     const startUrl = `${baseUrl}/models/${model}:predictLongRunning`;
 
@@ -113,8 +113,10 @@ export default class extends Module {
       this.log(`Video generation started, operation name: ${operationName}`);
 
       // Poll for video generation status
-      while (true) {
-        await sleep(10000); // 10 seconds wait
+      const pollInterval = config.veo?.pollIntervalMs ?? 10000;
+      const deadline = Date.now() + (config.veo?.maxWaitMs ?? 15 * 60 * 1000);
+      while (Date.now() < deadline) {
+        await sleep(pollInterval);
 
         const statusResponse = await got
           .get(`${baseUrl}/${operationName}`, {
@@ -139,6 +141,7 @@ export default class extends Module {
         }
         this.log('Video generation in progress...');
       }
+      return { error: '動画生成がタイムアウトしました（しばらくしてから再試行してください）' };
     } catch (error: any) {
       this.log(`Veo API error: ${error}`);
       const message = error instanceof Error ? error.message : String(error);
