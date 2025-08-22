@@ -85,6 +85,13 @@ type Config = {
     apiKey?: string;
     model?: string;
   };
+  veo?: {
+    enabled?: boolean;
+    apiKey?: string;
+    model?: string;
+    pollIntervalMs?: number;
+    maxWaitMs?: number;
+  };
   info?: {
     eventLoopMonitoringInterval?: number;
     enableGCMonitoring?: boolean;

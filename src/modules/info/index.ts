@@ -264,6 +264,8 @@ const CONFIG_LABELS = {
     weatherAutoNotePref: '天気地域設定',
     imagenEnabled: 'Imagen',
     imagenModel: 'Imagenモデル',
+    veoEnabled: 'Veo',
+    veoModel: 'Veoモデル',
   },
 } as const;
 
@@ -487,6 +489,19 @@ function formatOtherSettings(): string {
       )}`
     );
   }
+
+	if (config.veo) {
+		lines.push(
+			`- ${CONFIG_LABELS.others.veoEnabled}: ${formatBooleanSetting(
+				config.veo.enabled
+			)}`
+		);
+		lines.push(
+			`- ${CONFIG_LABELS.others.veoModel}: ${safeConfigValue(
+				config.veo.model
+			)}`
+		);
+	}
 
   return lines.join('\n') + '\n';
 }

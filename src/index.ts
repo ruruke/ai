@@ -44,6 +44,7 @@ import KiatsuModule from './modules/kiatsu/index.js';
 import WeatherModule from './modules/weather/index.js';
 import TimeSignalModule from './modules/time-signal/index.js';
 import ImagenModule from './modules/imagen/index.js';
+import VeoModule from './modules/veo/index.js';
 import InfoModule from './modules/info/index.js';
 import ReactionConfigModule from './modules/reaction-config/index.js';
 
@@ -127,6 +128,7 @@ promiseRetry(
       new WeatherModule(),
       new TimeSignalModule(),
       new ImagenModule(),
+      new VeoModule(),
       new InfoModule(),
     ]);
   })
