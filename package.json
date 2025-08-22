@@ -1,5 +1,5 @@
 {
-	"_v": "3.2.2-lqvp",
+	"_v": "3.2.3-lqvp",
 	"type": "module",
 	"main": "./built/index.js",
 	"scripts": {
