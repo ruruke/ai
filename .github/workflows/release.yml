@@ -51,10 +51,7 @@ jobs:
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Release v${{ needs.check-version.outputs.version }}
-          body: |
-            Release v${{ needs.check-version.outputs.version }}
-
-            Auto-generated release for version ${{ needs.check-version.outputs.version }}
+          generate_release_notes: true
           draft: false
           prerelease: false
 
