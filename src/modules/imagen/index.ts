@@ -131,7 +131,7 @@ export default class extends Module {
       };
     }
 
-    const model = 'gemini-2.0-flash-preview-image-generation';
+    const model = 'gemini-2.5-flash-image-preview';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     // 画像付きの場合はGemini APIを使用
