@@ -36,4 +36,4 @@ WORKDIR /ai
 RUN pnpm install && pnpm run build || test -f ./built/index.js
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD pnpm start
+CMD ["pnpm", "start"]
