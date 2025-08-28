@@ -92,6 +92,11 @@ type Config = {
     pollIntervalMs?: number;
     maxWaitMs?: number;
   };
+  updateChecker?: {
+    enabled?: boolean;
+    repository?: string;
+    intervalMinutes?: number;
+  };
   info?: {
     eventLoopMonitoringInterval?: number;
     enableGCMonitoring?: boolean;

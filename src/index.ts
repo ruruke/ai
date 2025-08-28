@@ -47,6 +47,7 @@ import ImagenModule from './modules/imagen/index.js';
 import VeoModule from './modules/veo/index.js';
 import InfoModule from './modules/info/index.js';
 import ReactionConfigModule from './modules/reaction-config/index.js';
+import UpdateCheckerModule from './modules/update-checker/index.js';
 
 console.log('   __    ____  _____  ___ ');
 console.log('  /__\\  (_  _)(  _  )/ __)');
@@ -130,6 +131,7 @@ promiseRetry(
       new ImagenModule(),
       new VeoModule(),
       new InfoModule(),
+      new UpdateCheckerModule(),
     ]);
   })
   .catch((e) => {

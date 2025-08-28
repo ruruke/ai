@@ -143,6 +143,12 @@ model = "veo-3.0-fast-generate-preview"
 pollIntervalMs = 10000 # ポーリング間隔 (ミリ秒)
 maxWaitMs = 900000 # 最大待機時間 (ミリ秒)
 
+# アップデートチェッカー設定
+[updateChecker]
+enabled = true
+repository = "lqvp/ai" # BotのGitHubリポジトリ (owner/repo)
+intervalMinutes = 60 # 更新をチェックする間隔 (分)
+
 # 情報モジュール設定
 [info]
 # イベントループの監視間隔 (ミリ秒)
