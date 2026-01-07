@@ -6,7 +6,7 @@ import Friend from '@/friend.js';
 import Message from '@/message.js';
 import { Note } from '@/misskey/note.js';
 import Module from '@/module.js';
-import serifs from '@/serifs.js';
+import serifs, { getSerif } from '@/serifs.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
 import { plain } from '@/utils/mfm.js';
@@ -1235,11 +1235,27 @@ export default class extends Module {
     const base64Files: Base64File[] = [];
     const text = await this.genTextByGemini(aiChat, base64Files);
 
-    if (text) {
-      this.ai.post({ text: text + ' #aichat' });
-    } else {
-      this.log('Gemini自動ノートの生成に失敗しました。');
+    if (this.isApiError(text)) {
+      const codeText =
+        typeof text.errorCode === 'number' ? `code=${text.errorCode}` : 'code=N/A';
+      const messageText =
+        typeof text.errorMessage === 'string'
+          ? `message=${text.errorMessage}`
+          : 'message=N/A';
+      this.log(`Gemini自動ノートの生成でHTTPエラーが発生しました: ${codeText} ${messageText}`);
+      const errorText = getSerif(serifs.aichat.autoNoteError());
+      this.ai.post({ text: serifs.aichat.post(errorText) });
+      return;
     }
+
+    if (typeof text === 'string' && text !== '') {
+      this.ai.post({ text: text + ' #aichat' });
+      return;
+    }
+
+    this.log('Gemini自動ノートの生成に失敗しました。');
+    const errorText = getSerif(serifs.aichat.autoNoteError());
+    this.ai.post({ text: serifs.aichat.post(errorText) });
   }
 
   @bindThis
