@@ -6,7 +6,7 @@ import loki from 'lokijs';
 import got from 'got';
 import { FormData, File } from 'formdata-node';
 import chalk from 'chalk';
-import { v4 as uuid } from 'uuid';
+// import { v4 as uuid } from 'uuid';
 
 import config from '@/config.js';
 import Module from '@/module.js';

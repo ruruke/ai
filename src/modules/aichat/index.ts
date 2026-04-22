@@ -6,7 +6,7 @@ import Friend from '@/friend.js';
 import Message from '@/message.js';
 import { Note } from '@/misskey/note.js';
 import Module from '@/module.js';
-import serifs, { getSerif } from '@/serifs.js';
+import serifs from '@/serifs.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
 import { plain } from '@/utils/mfm.js';
@@ -1233,33 +1233,59 @@ export default class extends Module {
     };
 
     const base64Files: Base64File[] = [];
-    const text = await this.genTextByGemini(aiChat, base64Files);
+    try {
+      const text = await this.genTextByGemini(aiChat, base64Files);
 
-    if (this.isApiError(text)) {
-      const codeText =
-        typeof text.errorCode === 'number'
-          ? `code=${text.errorCode}`
-          : 'code=N/A';
-      const messageText =
-        typeof text.errorMessage === 'string'
-          ? `message=${text.errorMessage}`
-          : 'message=N/A';
-      this.log(
-        `Gemini自動ノートの生成でHTTPエラーが発生しました: ${codeText} ${messageText}`
-      );
-      const errorText = getSerif(serifs.aichat.autoNoteError());
-      this.ai.post({ text: serifs.aichat.post(errorText) });
-      return;
+      if (this.isApiError(text)) {
+        const codeText =
+          typeof text.errorCode === 'number'
+            ? `code=${text.errorCode}`
+            : 'code=N/A';
+        const messageText =
+          typeof text.errorMessage === 'string'
+            ? `message=${text.errorMessage}`
+            : 'message=N/A';
+        this.log(
+          `Gemini自動ノートの生成でHTTPエラーが発生したため投稿をスキップします: ${codeText} ${messageText}`
+        );
+        return;
+      }
+
+      if (typeof text !== 'string') {
+        this.log(
+          `Gemini自動ノートの生成結果が文字列ではないため投稿をスキップします: type=${typeof text}`
+        );
+        return;
+      }
+
+      const normalizedText = text.trim();
+
+      if (normalizedText === '') {
+        this.log(
+          'Gemini自動ノートの生成結果が空文字のため投稿をスキップします。'
+        );
+        return;
+      }
+
+      if (normalizedText.includes('[object Object]')) {
+        this.log(
+          'Gemini自動ノートの生成結果に不正な文字列([object Object])が含まれるため投稿をスキップします。'
+        );
+        return;
+      }
+
+      await this.ai.post({ text: normalizedText + ' #aichat' });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.log(
+          `Gemini自動ノート処理中に例外が発生したため投稿をスキップします: ${error.message}`
+        );
+      } else {
+        this.log(
+          'Gemini自動ノート処理中に不明な例外が発生したため投稿をスキップします。'
+        );
+      }
     }
-
-    if (typeof text === 'string' && text !== '') {
-      this.ai.post({ text: text + ' #aichat' });
-      return;
-    }
-
-    this.log('Gemini自動ノートの生成に失敗しました。');
-    const errorText = getSerif(serifs.aichat.autoNoteError());
-    this.ai.post({ text: serifs.aichat.post(errorText) });
   }
 
   @bindThis
