@@ -68,6 +68,7 @@ type Config = {
     maxReconnectDelay?: number;
     heartbeatTimeoutMs?: number;
     heartbeatIntervalMs?: number;
+    p2pWebSocketUrl?: string;
   };
   kiatsu?: {
     locationCode?: string;

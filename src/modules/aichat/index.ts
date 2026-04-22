@@ -1237,12 +1237,16 @@ export default class extends Module {
 
     if (this.isApiError(text)) {
       const codeText =
-        typeof text.errorCode === 'number' ? `code=${text.errorCode}` : 'code=N/A';
+        typeof text.errorCode === 'number'
+          ? `code=${text.errorCode}`
+          : 'code=N/A';
       const messageText =
         typeof text.errorMessage === 'string'
           ? `message=${text.errorMessage}`
           : 'message=N/A';
-      this.log(`Gemini自動ノートの生成でHTTPエラーが発生しました: ${codeText} ${messageText}`);
+      this.log(
+        `Gemini自動ノートの生成でHTTPエラーが発生しました: ${codeText} ${messageText}`
+      );
       const errorText = getSerif(serifs.aichat.autoNoteError());
       this.ai.post({ text: serifs.aichat.post(errorText) });
       return;

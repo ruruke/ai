@@ -118,6 +118,7 @@ websocketReconnectDelay = 5000
 maxReconnectDelay = 300000
 heartbeatTimeoutMs = 120000
 heartbeatIntervalMs = 60000
+p2pWebSocketUrl = "wss://api.p2pquake.net/v2/ws" # P2P地震情報WebSocket（津波情報を受信）
 
 # 気圧監視設定
 [kiatsu]

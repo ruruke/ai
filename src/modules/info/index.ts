@@ -490,18 +490,16 @@ function formatOtherSettings(): string {
     );
   }
 
-	if (config.veo) {
-		lines.push(
-			`- ${CONFIG_LABELS.others.veoEnabled}: ${formatBooleanSetting(
-				config.veo.enabled
-			)}`
-		);
-		lines.push(
-			`- ${CONFIG_LABELS.others.veoModel}: ${safeConfigValue(
-				config.veo.model
-			)}`
-		);
-	}
+  if (config.veo) {
+    lines.push(
+      `- ${CONFIG_LABELS.others.veoEnabled}: ${formatBooleanSetting(
+        config.veo.enabled
+      )}`
+    );
+    lines.push(
+      `- ${CONFIG_LABELS.others.veoModel}: ${safeConfigValue(config.veo.model)}`
+    );
+  }
 
   return lines.join('\n') + '\n';
 }

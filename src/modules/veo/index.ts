@@ -77,7 +77,9 @@ export default class extends Module {
   }
 
   @bindThis
-  private async generateVideo(prompt: string): Promise<string | { error: string }> {
+  private async generateVideo(
+    prompt: string
+  ): Promise<string | { error: string }> {
     if (!this.apiKey) {
       return { error: 'APIキーが設定されていません' };
     }
@@ -131,7 +133,9 @@ export default class extends Module {
             return { error: statusResponse.error.message };
           }
 
-          const videoUri = statusResponse.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+          const videoUri =
+            statusResponse.response?.generateVideoResponse
+              ?.generatedSamples?.[0]?.video?.uri;
           if (videoUri) {
             this.log(`Video is ready, URI: ${videoUri}`);
             return videoUri;
@@ -141,7 +145,10 @@ export default class extends Module {
         }
         this.log('Video generation in progress...');
       }
-      return { error: '動画生成がタイムアウトしました（しばらくしてから再試行してください）' };
+      return {
+        error:
+          '動画生成がタイムアウトしました（しばらくしてから再試行してください）',
+      };
     } catch (error: any) {
       this.log(`Veo API error: ${error}`);
       const message = error instanceof Error ? error.message : String(error);

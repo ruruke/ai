@@ -56,6 +56,33 @@ interface HeartbeatData {
   timestamp: number;
 }
 
+interface P2PQuakeTsunamiData {
+  id: string;
+  code: number;
+  time: string;
+  cancelled: boolean;
+  issue: {
+    source?: string;
+    time: string;
+    type: string;
+  };
+  areas?: TsunamiArea[];
+}
+
+interface TsunamiArea {
+  grade?: string;
+  immediate?: boolean;
+  name?: string;
+  firstHeight?: {
+    arrivalTime?: string;
+    condition?: string;
+  };
+  maxHeight?: {
+    description?: string;
+    value?: number;
+  };
+}
+
 // 地震イベントを追跡するための型定義
 interface EarthquakeEvent {
   eventId: string;
@@ -80,20 +107,26 @@ interface EarthquakeMessageGenerator {
 export default class extends Module {
   public readonly name = 'earthquake_warning';
 
-  private readonly WEBSOCKET_URL = 'wss://ws-api.wolfx.jp/jma_eew';
-  // private readonly WEBSOCKET_URL = "ws://localhost:8765/"; // ローカルでのテスト用
+  private readonly WOLFX_WEBSOCKET_URL = 'wss://ws-api.wolfx.jp/jma_eew';
+  private readonly P2P_WEBSOCKET_URL =
+    config.earthquakeWarning?.p2pWebSocketUrl ?? 'wss://api.p2pquake.net/v2/ws';
+  // private readonly WOLFX_WEBSOCKET_URL = "ws://localhost:8765/"; // ローカルでのテスト用
   private ws: WebSocket | null = null;
+  private p2pWs: WebSocket | null = null;
   private reconnectAttempts = 0;
+  private p2pReconnectAttempts = 0;
   private maxReconnectAttempts =
     config.earthquakeWarning?.websocketReconnectMaxAttempts ?? 10;
   private reconnectDelay =
     config.earthquakeWarning?.websocketReconnectDelay ?? 5000; // ms
   private maxReconnectDelay =
     config.earthquakeWarning?.maxReconnectDelay ?? 300000; // 最大5分
+  private p2pReconnectTimer: NodeJS.Timeout | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private lastHeartbeat = 0;
   private activeEvents: Map<string, EarthquakeEvent> = new Map();
   private lastEarthquakeData: Map<string, WolfxEarthquakeData> = new Map();
+  private processedTsunamiIds: Map<string, number> = new Map();
   // 接続後のデータ無視制御用
   private ignoreInitialData = true;
   private initialDataTimer: NodeJS.Timeout | null = null;
@@ -108,6 +141,7 @@ export default class extends Module {
     this.log('地震警報モジュールを初期化しています...');
     this.connectionId = this.generateConnectionId();
     this.connectWebSocket();
+    this.connectP2PWebSocket();
     return {};
   }
 
@@ -130,7 +164,7 @@ export default class extends Module {
         };
       }
 
-      this.ws = new WebSocket(this.WEBSOCKET_URL, [], wsOptions);
+      this.ws = new WebSocket(this.WOLFX_WEBSOCKET_URL, [], wsOptions);
 
       // 安全なイベントリスナーを設定
       this.ws.on('open', this.safeEventHandler(this.onWebSocketOpen));
@@ -147,6 +181,48 @@ export default class extends Module {
   }
 
   @bindThis
+  private connectP2PWebSocket(): void {
+    try {
+      if (
+        this.p2pWs &&
+        (this.p2pWs.readyState === WebSocket.CONNECTING ||
+          this.p2pWs.readyState === WebSocket.OPEN)
+      ) {
+        return;
+      }
+
+      this.log('P2PQuake WebSocketに接続しています...');
+
+      const wsOptions: any = {};
+
+      if (config.userAgent?.websocket) {
+        wsOptions.headers = {
+          'User-Agent': config.userAgent?.websocket,
+        };
+      }
+
+      this.p2pWs = new WebSocket(this.P2P_WEBSOCKET_URL, [], wsOptions);
+
+      this.p2pWs.on('open', this.safeP2PEventHandler(this.onP2PWebSocketOpen));
+      this.p2pWs.on(
+        'message',
+        this.safeP2PEventHandler(this.onP2PWebSocketMessage)
+      );
+      this.p2pWs.on(
+        'error',
+        this.safeP2PEventHandler(this.onP2PWebSocketError)
+      );
+      this.p2pWs.on(
+        'close',
+        this.safeP2PEventHandler(this.onP2PWebSocketClose)
+      );
+    } catch (error) {
+      this.log(`P2PQuake WebSocket接続エラー: ${error}`);
+      this.scheduleP2PReconnect();
+    }
+  }
+
+  @bindThis
   private safeEventHandler(handler: Function): (...args: any[]) => void {
     return (...args: any[]) => {
       try {
@@ -159,6 +235,19 @@ export default class extends Module {
           this.closeConnection();
           this.scheduleReconnect();
         }
+      }
+    };
+  }
+
+  @bindThis
+  private safeP2PEventHandler(handler: Function): (...args: any[]) => void {
+    return (...args: any[]) => {
+      try {
+        handler.apply(this, args);
+      } catch (error) {
+        this.log(`P2PQuakeイベントハンドラでエラーが発生しました: ${error}`);
+        this.closeP2PConnection();
+        this.scheduleP2PReconnect();
       }
     };
   }
@@ -268,6 +357,86 @@ export default class extends Module {
   }
 
   @bindThis
+  private onP2PWebSocketOpen(): void {
+    this.log('P2PQuake WebSocket接続が確立されました');
+    this.p2pReconnectAttempts = 0;
+
+    if (this.p2pReconnectTimer) {
+      clearTimeout(this.p2pReconnectTimer);
+      this.p2pReconnectTimer = null;
+    }
+  }
+
+  @bindThis
+  private onP2PWebSocketMessage(data: WebSocket.Data): void {
+    try {
+      if (!data) {
+        return;
+      }
+
+      const parsed = JSON.parse(data.toString()) as unknown;
+
+      if (!parsed || typeof parsed !== 'object') {
+        return;
+      }
+
+      if (!('code' in parsed) || parsed.code !== 552) {
+        return;
+      }
+
+      void this.handleTsunamiData(parsed);
+    } catch (error) {
+      this.log(`P2PQuakeメッセージ処理エラー: ${error}`);
+    }
+  }
+
+  @bindThis
+  private onP2PWebSocketError(error: Error): void {
+    this.log(`P2PQuake WebSocketエラー: ${error.message}`);
+    this.closeP2PConnection();
+    this.scheduleP2PReconnect();
+  }
+
+  @bindThis
+  private onP2PWebSocketClose(code: number, reason: string): void {
+    this.log(`P2PQuake WebSocket接続が閉じられました: ${code} ${reason}`);
+    this.p2pWs = null;
+    this.scheduleP2PReconnect();
+  }
+
+  @bindThis
+  private scheduleP2PReconnect(): void {
+    if (this.p2pReconnectTimer) {
+      return;
+    }
+
+    if (this.p2pReconnectAttempts >= this.maxReconnectAttempts) {
+      this.log(
+        'P2PQuake: 最大再接続試行回数を超えました。再接続を停止します。'
+      );
+      return;
+    }
+
+    this.p2pReconnectAttempts++;
+
+    const baseDelay =
+      this.reconnectDelay * Math.pow(1.5, this.p2pReconnectAttempts - 1);
+    const jitter = 0.1 * baseDelay * (Math.random() - 0.5);
+    const delay = Math.min(baseDelay + jitter, this.maxReconnectDelay);
+
+    this.log(
+      `${Math.round(delay)}ms後にP2PQuakeへ再接続を試みます (試行: ${
+        this.p2pReconnectAttempts
+      }/${this.maxReconnectAttempts})`
+    );
+
+    this.p2pReconnectTimer = setTimeout(() => {
+      this.p2pReconnectTimer = null;
+      this.connectP2PWebSocket();
+    }, delay);
+  }
+
+  @bindThis
   private handleHeartbeat(data: HeartbeatData): void {
     if (
       !data ||
@@ -326,6 +495,210 @@ export default class extends Module {
         this.log(`接続終了エラー: ${error}`);
       } finally {
         this.ws = null;
+      }
+    }
+  }
+
+  @bindThis
+  private closeP2PConnection(): void {
+    if (this.p2pReconnectTimer) {
+      clearTimeout(this.p2pReconnectTimer);
+      this.p2pReconnectTimer = null;
+    }
+
+    if (this.p2pWs) {
+      try {
+        this.p2pWs.terminate();
+      } catch (error) {
+        this.log(`P2PQuake接続終了エラー: ${error}`);
+      } finally {
+        this.p2pWs = null;
+      }
+    }
+  }
+
+  @bindThis
+  private async handleTsunamiData(data: unknown): Promise<void> {
+    if (!this.validateTsunamiData(data)) {
+      this.log('無効な津波データを受信しました。処理をスキップします。');
+      return;
+    }
+
+    if (this.processedTsunamiIds.has(data.id)) {
+      return;
+    }
+
+    this.processedTsunamiIds.set(data.id, Date.now());
+    const message = this.generateTsunamiMessage(data);
+
+    try {
+      await this.ai.post({
+        text: message,
+      });
+
+      this.log(`津波情報を送信しました: ${data.id}`);
+      this.pruneProcessedTsunamiIds();
+    } catch (error) {
+      // 投稿失敗時は再受信で再試行できるようにする
+      this.processedTsunamiIds.delete(data.id);
+      this.log(`津波情報の送信エラー: ${error}`);
+    }
+  }
+
+  @bindThis
+  private validateTsunamiData(data: unknown): data is P2PQuakeTsunamiData {
+    if (!data || typeof data !== 'object') {
+      return false;
+    }
+
+    const tsunamiData = data as Partial<P2PQuakeTsunamiData>;
+
+    if (typeof tsunamiData.id !== 'string') {
+      return false;
+    }
+
+    if (tsunamiData.code !== 552) {
+      return false;
+    }
+
+    if (typeof tsunamiData.time !== 'string') {
+      return false;
+    }
+
+    if (typeof tsunamiData.cancelled !== 'boolean') {
+      return false;
+    }
+
+    if (!tsunamiData.issue || typeof tsunamiData.issue !== 'object') {
+      return false;
+    }
+
+    if (
+      typeof tsunamiData.issue.time !== 'string' ||
+      typeof tsunamiData.issue.type !== 'string'
+    ) {
+      return false;
+    }
+
+    if (tsunamiData.areas !== undefined && !Array.isArray(tsunamiData.areas)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @bindThis
+  private generateTsunamiMessage(data: P2PQuakeTsunamiData): string {
+    const issueTime = this.formatP2PDateTime(data.issue.time || data.time);
+    const issueSource = data.issue.source || '気象庁';
+
+    if (data.cancelled) {
+      return (
+        `🌊 津波情報\n\n` +
+        `${issueTime}、${issueSource}の津波予報は解除されました。\n` +
+        `念のため沿岸部では安全確認を続けてください。`
+      );
+    }
+
+    const areas = Array.isArray(data.areas) ? data.areas : [];
+    const gradeCounts = new Map<string, number>();
+
+    for (const area of areas) {
+      const grade = this.convertTsunamiGrade(area.grade);
+      gradeCounts.set(grade, (gradeCounts.get(grade) ?? 0) + 1);
+    }
+
+    const gradeSummary = Array.from(gradeCounts.entries())
+      .map(([grade, count]) => `${grade} ${count}地域`)
+      .join(' / ');
+
+    let message = '🌊 津波情報を受信しました\n\n';
+    message += `${issueTime}、${issueSource}から津波予報が発表されました。\n`;
+
+    if (gradeSummary) {
+      message += `区分: ${gradeSummary}\n`;
+    }
+
+    if (areas.length === 0) {
+      message += '\n対象地域の詳細は確認できませんでした。';
+      return message;
+    }
+
+    message += '\n対象地域:\n';
+    const displayAreas = areas.slice(0, 6);
+
+    for (const area of displayAreas) {
+      message += `・${this.formatTsunamiArea(area)}\n`;
+    }
+
+    if (areas.length > displayAreas.length) {
+      message += `・他${areas.length - displayAreas.length}地域\n`;
+    }
+
+    message += '\n海岸や河口付近から離れ、自治体の避難情報に従ってください。';
+    return message;
+  }
+
+  @bindThis
+  private formatTsunamiArea(area: TsunamiArea): string {
+    const name = area.name || '名称不明';
+    const grade = this.convertTsunamiGrade(area.grade);
+    const details: string[] = [];
+
+    if (area.immediate) {
+      details.push('直ちに津波来襲と予測');
+    }
+
+    if (area.firstHeight?.condition) {
+      details.push(area.firstHeight.condition);
+    } else if (area.firstHeight?.arrivalTime) {
+      details.push(`第1波: ${area.firstHeight.arrivalTime}`);
+    }
+
+    if (area.maxHeight?.description) {
+      details.push(`予想高さ: ${area.maxHeight.description}`);
+    } else if (typeof area.maxHeight?.value === 'number') {
+      details.push(`予想高さ: ${area.maxHeight.value}m`);
+    }
+
+    if (details.length === 0) {
+      return `${name} (${grade})`;
+    }
+
+    return `${name} (${grade}) ${details.join(' / ')}`;
+  }
+
+  @bindThis
+  private convertTsunamiGrade(grade?: string): string {
+    if (grade === 'MajorWarning') return '大津波警報';
+    if (grade === 'Warning') return '津波警報';
+    if (grade === 'Watch') return '津波注意報';
+    return '不明';
+  }
+
+  @bindThis
+  private formatP2PDateTime(value: string): string {
+    const parsed = new Date(value);
+
+    if (isNaN(parsed.getTime())) {
+      return `${value} JST`;
+    }
+
+    return this.formatJSTDateTime(parsed);
+  }
+
+  @bindThis
+  private pruneProcessedTsunamiIds(): void {
+    if (this.processedTsunamiIds.size < 500) {
+      return;
+    }
+
+    const expiryMs = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    for (const [id, processedAt] of this.processedTsunamiIds) {
+      if (now - processedAt > expiryMs) {
+        this.processedTsunamiIds.delete(id);
       }
     }
   }
