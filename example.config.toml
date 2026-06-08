@@ -55,6 +55,14 @@ defaultVisibility = "public" # デフォルト投稿の公開範囲
 weatherAutoNotePref = "東京都" # 都道府県
 weatherAutoNoteHour = 7 # 天気予報を投稿する時間
 
+[aiProvider]
+provider = "gemini" # デフォルトのAIプロバイダー (例: "gemini", "openai")
+
+[aiProvider.openai]
+apiKey = "token" # OpenAI APIキー
+baseUrl = "https://api.openai.com" # OpenAI APIのベースURL
+model = "gpt-4" # 使用するモデル (例: "gpt-4", "gpt-3.5-turbo")
+
 # Gemini AI 統合設定
 [gemini]
 enabled = true

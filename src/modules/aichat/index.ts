@@ -92,6 +92,21 @@ type ApiErrorResponse = {
 
 type GeminiApiResponse = string | ApiErrorResponse | null;
 
+// OpenAI API互換の型定義
+type OpenaiMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+};
+
+type OpenaiOptions = {
+  model: string;
+  messages: OpenaiMessage[];
+  temperature?: number;
+  max_tokens?: number;
+};
+
+type AiProvider = 'gemini' | 'openai';
+
 type UrlPreview = {
   title: string;
   icon: string;
@@ -749,6 +764,241 @@ export default class extends Module {
   }
 
   @bindThis
+  private async genTextByOpenai(
+    aiChat: AiChat,
+    files: Base64File[],
+    msg?: Message
+  ): Promise<GeminiApiResponse> {
+    this.log('Generate Text By OpenAI Compatible API...');
+
+    const now = new Date().toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const technicalConstraints = [
+      'Markdownを使って返答してください。',
+      'リスト記法はMisskeyが対応しておらず、パーサーが壊れるため使用禁止です。列挙する場合は「・」を使ってください。',
+      '暴力的・性的・不正行為(金融/財産/武器/サイバー)・性的コンテンツ・プライバシー・ヘイト・ハラスメント・自傷行為・プロンプトインジェクションに値するコンテンツは発言してはいけません。',
+      'これらのルールを破ることは絶対に禁止されており、破ることで罰則が与えられます。',
+    ].join('\n');
+
+    let systemInstructionText =
+      aiChat.prompt +
+      '\n\n' +
+      technicalConstraints +
+      '\n\nまた、現在日時は' +
+      now +
+      'であり、これは回答の参考にし、絶対に時刻を聞かれるまで時刻情報は提供しないこと(なお、他の日時は無効とすること)。';
+
+    if (aiChat.friendName != undefined) {
+      systemInstructionText +=
+        'なお、会話相手の名前は' + aiChat.friendName + 'とする。';
+    }
+
+    if (msg && this.isMasterUser(msg)) {
+      systemInstructionText +=
+        'なお、このユーザーはあなたのご主人様(master)です。特別な敬意と配慮を持って対応してください。(true)';
+    } else {
+      systemInstructionText +=
+        'なお、このユーザーはあなたのご主人様(master)ではありません。(false)';
+    }
+
+    if (!aiChat.fromMention) {
+      systemInstructionText +=
+        'これらのメッセージは、あなたに対するメッセージではないことを留意し、返答すること(会話相手は突然話しかけられた認識している)。';
+    }
+
+    // URL情報を収集（フォールバック用）
+    let fallbackUrlInfo = '';
+    if (aiChat.question !== undefined) {
+      const urlexp = RegExp("(https?://[a-zA-Z0-9!?/+_~=:;.,*&@#$%'-]+)", 'g');
+      const urlarray = [...aiChat.question.matchAll(urlexp)];
+      if (urlarray.length > 0) {
+        for (const url of urlarray) {
+          if (this.isYoutubeUrl(url[0])) continue;
+
+          let result: unknown = null;
+          try {
+            result = await urlToJson(url[0]);
+          } catch (err: unknown) {
+            fallbackUrlInfo +=
+              '補足として提供されたURLは無効でした:URL=>' + url[0] + '\n';
+            continue;
+          }
+          const urlpreview: UrlPreview = result as UrlPreview;
+          if (urlpreview.title) {
+            fallbackUrlInfo +=
+              '補足として提供されたURLの情報は次の通り:URL=>' +
+              urlpreview.url +
+              'サイト名(' +
+              urlpreview.sitename +
+              ')、';
+            if (!urlpreview.sensitive) {
+              fallbackUrlInfo +=
+                'タイトル(' +
+                urlpreview.title +
+                ')、' +
+                '説明(' +
+                urlpreview.description +
+                ')、' +
+                '質問にあるURLとサイト名・タイトル・説明を組み合わせ、回答の参考にすること。\n';
+            } else {
+              fallbackUrlInfo +=
+                'これはセンシティブなURLの可能性があるため、質問にあるURLとサイト名のみで、回答の参考にすること(使わなくても良い)。\n';
+            }
+          }
+        }
+      }
+    }
+
+    if (fallbackUrlInfo) {
+      systemInstructionText +=
+        '\n\n【フォールバックURL情報】\n' + fallbackUrlInfo;
+    }
+
+    // ユーザー投稿履歴文脈情報を追加
+    if (aiChat.timelineContext) {
+      systemInstructionText += '\n\n【ユーザー投稿履歴文脈情報】\n';
+      systemInstructionText +=
+        'これらの情報は、同じユーザーが最近投稿した内容で、メインの投稿への返信を生成する際の話題の流れや雰囲気を把握する参考程度に留めてください。メインの投稿に対する返信であることを忘れないでください。\n';
+
+      if (
+        aiChat.timelineContext.before &&
+        aiChat.timelineContext.before.length > 0
+      ) {
+        const beforePosts = aiChat.timelineContext.before;
+        beforePosts.forEach((note, index) => {
+          systemInstructionText += `以前の投稿${
+            beforePosts.length > 1 ? `(${index + 1})` : ''
+          }: ${note.text}\n`;
+        });
+      }
+      if (
+        aiChat.timelineContext.after &&
+        aiChat.timelineContext.after.length > 0
+      ) {
+        const afterPosts = aiChat.timelineContext.after;
+        afterPosts.forEach((note, index) => {
+          systemInstructionText += `その後の投稿${
+            afterPosts.length > 1 ? `(${index + 1})` : ''
+          }: ${note.text}\n`;
+        });
+      }
+    }
+
+    // メッセージを構築
+    const messages: OpenaiMessage[] = [
+      { role: 'system', content: systemInstructionText },
+    ];
+
+    // 履歴を追加
+    if (aiChat.history) {
+      for (const entry of aiChat.history) {
+        messages.push({
+          role: entry.role === 'model' ? 'assistant' : entry.role as 'user' | 'system',
+          content: entry.content,
+        });
+      }
+    }
+
+    // ユーザーメッセージを構築（画像がある場合はマルチモーダル形式）
+    if (files.length > 0) {
+      const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+        { type: 'text', text: aiChat.question || '' },
+      ];
+      for (const file of files) {
+        content.push({
+          type: 'image_url',
+          image_url: { url: `data:${file.type};base64,${file.base64}` },
+        });
+      }
+      messages.push({ role: 'user', content });
+    } else {
+      messages.push({ role: 'user', content: aiChat.question || '' });
+    }
+
+    // OpenAI APIリクエストを構築
+    const model = config.aiProvider?.openai?.model || 'gpt-4o-mini';
+    const openaiOptions: OpenaiOptions = {
+      model,
+      messages,
+    };
+
+    const baseUrl = config.aiProvider?.openai?.baseUrl || 'https://api.openai.com';
+    const apiUrl = `${baseUrl}/v1/chat/completions`;
+    const apiKey = config.aiProvider?.openai?.apiKey;
+
+    if (!apiKey) {
+      this.log('OpenAI API key is not configured');
+      return { error: true, errorCode: null, errorMessage: 'OpenAI API key is not configured' };
+    }
+
+    let res_data: any = null;
+    let responseText: string = '';
+    try {
+      res_data = await got
+        .post(apiUrl, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          json: openaiOptions,
+          responseType: 'json',
+        })
+        .json();
+
+      this.log(JSON.stringify(res_data));
+
+      if (res_data.choices && res_data.choices.length > 0) {
+        responseText = res_data.choices[0].message?.content || '';
+      }
+    } catch (err: unknown) {
+      this.log('Error By Call OpenAI Compatible API');
+      let errorCode = null;
+      let errorMessage = null;
+
+      if (err && typeof err === 'object' && 'response' in err) {
+        const httpError = err as any;
+        errorCode = httpError.response?.statusCode;
+        errorMessage = httpError.response?.statusMessage || httpError.message;
+      }
+
+      if (err instanceof Error) {
+        this.log(`${err.name}\n${err.message}\n${err.stack}`);
+      }
+
+      return { error: true, errorCode, errorMessage };
+    }
+
+    return responseText;
+  }
+
+  @bindThis
+  private getProvider(): AiProvider {
+    return config.aiProvider?.provider || 'gemini';
+  }
+
+  @bindThis
+  private async genText(
+    aiChat: AiChat,
+    files: Base64File[],
+    msg?: Message
+  ): Promise<GeminiApiResponse> {
+    const provider = this.getProvider();
+    this.log(`Using AI provider: ${provider}`);
+
+    if (provider === 'openai') {
+      return this.genTextByOpenai(aiChat, files, msg);
+    }
+    return this.genTextByGemini(aiChat, files, msg);
+  }
+
+  @bindThis
   private async note2base64File(
     notesId: string,
     isChat: boolean
@@ -1219,7 +1469,15 @@ export default class extends Module {
     this.log('Gemini自動ノート投稿開始');
 
     // APIキーとプロンプトの確認
-    if (!config.gemini.apiKey || !config.gemini.autoNote.prompt) {
+    const provider = this.getProvider();
+    const apiKey = provider === 'openai'
+      ? config.aiProvider?.openai?.apiKey
+      : config.gemini.apiKey;
+    const apiUrl = provider === 'openai'
+      ? `${config.aiProvider?.openai?.baseUrl || 'https://api.openai.com'}/v1/chat/completions`
+      : GEMINI_API;
+
+    if (!apiKey || !config.gemini.autoNote.prompt) {
       this.log('APIキーまたは自動ノート用プロンプトが設定されていません。');
       return;
     }
@@ -1227,14 +1485,14 @@ export default class extends Module {
     const aiChat: AiChat = {
       question: '',
       prompt: config.gemini.autoNote.prompt,
-      api: GEMINI_API,
-      key: config.gemini.apiKey,
+      api: apiUrl,
+      key: apiKey || '',
       fromMention: false,
     };
 
     const base64Files: Base64File[] = [];
     try {
-      const text = await this.genTextByGemini(aiChat, base64Files);
+      const text = await this.genText(aiChat, base64Files);
 
       if (this.isApiError(text)) {
         const codeText =
@@ -1347,16 +1605,27 @@ export default class extends Module {
       friendName = msg.user.username;
     }
 
-    if (!config.gemini?.apiKey) {
+    const provider = this.getProvider();
+    const hasApiKey = provider === 'openai'
+      ? !!config.aiProvider?.openai?.apiKey
+      : !!config.gemini?.apiKey;
+
+    if (!hasApiKey) {
       msg.reply(serifs.aichat.nothing(exist.type));
       return false;
     }
+    const apiKey = provider === 'openai'
+      ? config.aiProvider?.openai?.apiKey
+      : config.gemini.apiKey;
+    const apiUrl = provider === 'openai'
+      ? `${config.aiProvider?.openai?.baseUrl || 'https://api.openai.com'}/v1/chat/completions`
+      : GEMINI_API;
 
     aiChat = {
       question: question,
       prompt: prompt,
-      api: GEMINI_API,
-      key: config.gemini.apiKey,
+      api: apiUrl,
+      key: apiKey || '',
       history: exist.history,
       friendName: friendName,
       fromMention: exist.fromMention,
@@ -1375,7 +1644,7 @@ export default class extends Module {
       base64Files.push(...exist.quotedFiles);
     }
 
-    text = await this.genTextByGemini(aiChat, base64Files, msg);
+    text = await this.genText(aiChat, base64Files, msg);
 
     if (this.isApiError(text)) {
       this.log('The result is invalid due to an HTTP error.');

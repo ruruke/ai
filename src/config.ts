@@ -19,6 +19,14 @@ type Config = {
   serverMonitoring: boolean;
   checkEmojisEnabled?: boolean;
   checkEmojisAtOnce?: boolean;
+  aiProvider?: {
+    provider?: 'gemini' | 'openai'; // デフォルト: 'gemini'
+    openai?: {
+      apiKey?: string;
+      baseUrl?: string; // OpenAI互換APIのURL（デフォルト: https://api.openai.com）
+      model?: string;
+    };
+  };
   gemini?: {
     enabled?: boolean;
     apiKey?: string;
