@@ -1,15 +1,16 @@
 import got from 'got';
 import loki from 'lokijs';
-import config from '@/config.js';
+import config, { type Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
 import Friend from '@/friend.js';
 import Message from '@/message.js';
 import { Note } from '@/misskey/note.js';
 import Module from '@/module.js';
 import serifs from '@/serifs.js';
+import { jinaRead, jinaSearch } from '@/utils/jina.js';
+import { plain } from '@/utils/mfm.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
-import { plain } from '@/utils/mfm.js';
 
 type AiChat = {
   question: string;
@@ -93,16 +94,67 @@ type ApiErrorResponse = {
 type GeminiApiResponse = string | ApiErrorResponse | null;
 
 // OpenAI API互換の型定義
-type OpenaiMessage = {
-  role: 'system' | 'user' | 'assistant';
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+type OpenaiContentPart =
+  | { type: string; text?: string; image_url?: { url: string } };
+
+type OpenaiSystemOrUserMessage = {
+  role: 'system' | 'user';
+  content: string | OpenaiContentPart[];
 };
+
+type OpenaiToolCall = {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+type OpenaiAssistantMessage = {
+  role: 'assistant';
+  content: string | null | OpenaiContentPart[];
+  tool_calls?: OpenaiToolCall[];
+};
+
+type OpenaiToolMessage = {
+  role: 'tool';
+  tool_call_id: string;
+  content: string;
+};
+
+type OpenaiMessage =
+  | OpenaiSystemOrUserMessage
+  | OpenaiAssistantMessage
+  | OpenaiToolMessage;
+
+type OpenaiFunctionParameters = {
+  type: 'object';
+  properties: Record<string, unknown>;
+  required?: string[];
+};
+
+type OpenaiFunctionTool = {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters: OpenaiFunctionParameters;
+  };
+};
+
+type OpenaiToolChoice =
+  | 'auto'
+  | 'none'
+  | { type: 'function'; function: { name: string } };
 
 type OpenaiOptions = {
   model: string;
   messages: OpenaiMessage[];
   temperature?: number;
   max_tokens?: number;
+  tools?: OpenaiFunctionTool[];
+  tool_choice?: OpenaiToolChoice;
 };
 
 type AiProvider = 'gemini' | 'openai';
@@ -129,6 +181,9 @@ const TYPE_GEMINI = 'gemini';
 const GROUNDING_TARGET = 'ggg';
 const geminiModel = config.gemini?.model || 'gemini-2.5-flash';
 const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+
+const JINA_TOOL_SEARCH = 'jina_search';
+const JINA_TOOL_READ = 'jina_read';
 
 // タイミング関連定数
 const TIMEOUT_TIME = 1000 * 60 * 30; // 30分（0.5時間）
@@ -924,11 +979,6 @@ export default class extends Module {
 
     // OpenAI APIリクエストを構築
     const model = config.aiProvider?.openai?.model || 'gpt-4o-mini';
-    const openaiOptions: OpenaiOptions = {
-      model,
-      messages,
-    };
-
     const baseUrl = config.aiProvider?.openai?.baseUrl || 'https://api.openai.com';
     const apiUrl = `${baseUrl}/v1/chat/completions`;
     const apiKey = config.aiProvider?.openai?.apiKey;
@@ -938,44 +988,284 @@ export default class extends Module {
       return { error: true, errorCode: null, errorMessage: 'OpenAI API key is not configured' };
     }
 
-    let res_data: any = null;
-    let responseText: string = '';
-    try {
-      res_data = await got
-        .post(apiUrl, {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
+    // Jinaツールの構築
+    const jinaConfig = config.jina;
+    const jinaEnabled = jinaConfig?.enabled === true;
+    const jinaApiKey = jinaConfig?.apiKey;
+    const searchEnabled = jinaConfig?.search?.enabled !== false;
+    const readEnabled = jinaConfig?.read?.enabled !== false;
+    const includeSearchTool = jinaEnabled && searchEnabled && !!jinaApiKey;
+    const includeReadTool = jinaEnabled && readEnabled;
+    const includeAnyJinaTool = includeSearchTool || includeReadTool;
+
+    if (jinaEnabled) {
+      this.log(
+        `Jinaツール設定: enabled=${jinaEnabled}, search=${includeSearchTool}, read=${includeReadTool}`
+      );
+    }
+
+    const tools: OpenaiFunctionTool[] = [];
+    if (includeSearchTool) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: JINA_TOOL_SEARCH,
+          description:
+            'Jina AI でWeb検索を行い、上位の結果（タイトル/URL/本文）を取得します。最新の話題や外部情報を参照したいときに使ってください。',
+          parameters: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'string',
+                description: '検索クエリ（自然文）',
+              },
+            },
+            required: ['query'],
           },
-          json: openaiOptions,
-          responseType: 'json',
+        },
+      });
+    }
+    if (includeReadTool) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: JINA_TOOL_READ,
+          description:
+            '指定したURLの本文をJina AI Readerで抽出します。記事やドキュメント本文を読みたいときに使ってください。',
+          parameters: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: '読み取り対象のhttp/https URL',
+              },
+            },
+            required: ['url'],
+          },
+        },
+      });
+    }
+
+    const maxRoundsRaw = jinaConfig?.tool?.maxRounds;
+    const parsedMaxRounds =
+      typeof maxRoundsRaw === 'number' && !Number.isNaN(maxRoundsRaw)
+        ? Math.floor(maxRoundsRaw)
+        : 3;
+    const maxRounds = Math.max(1, parsedMaxRounds);
+
+    let responseText = '';
+
+    for (let round = 0; round < maxRounds; round++) {
+      const isLastRound = round === maxRounds - 1;
+      const sendTools = includeAnyJinaTool && !isLastRound;
+
+      const openaiOptions: OpenaiOptions = {
+        model,
+        messages,
+      };
+      if (sendTools) {
+        openaiOptions.tools = tools;
+        openaiOptions.tool_choice = 'auto';
+      }
+
+      let resData: any = null;
+      try {
+        resData = await got
+          .post(apiUrl, {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            json: openaiOptions,
+            responseType: 'json',
+          })
+          .json();
+
+        this.log(`OpenAI互換APIレスポンス(round=${round}): ${JSON.stringify(resData)}`);
+      } catch (err: unknown) {
+        this.log('Error By Call OpenAI Compatible API');
+        let errorCode: number | null = null;
+        let errorMessage: string | null = null;
+
+        if (err && typeof err === 'object' && 'response' in err) {
+          const httpError = err as { response?: { statusCode?: number; statusMessage?: string }; message?: string };
+          if (typeof httpError.response?.statusCode === 'number') {
+            errorCode = httpError.response.statusCode;
+          }
+          errorMessage =
+            httpError.response?.statusMessage || httpError.message || null;
+        }
+
+        if (err instanceof Error) {
+          this.log(`${err.name}\n${err.message}\n${err.stack}`);
+        }
+
+        return { error: true, errorCode, errorMessage };
+      }
+
+      const choice = resData?.choices?.[0];
+      const assistantMessage = choice?.message;
+      if (!assistantMessage) {
+        this.log('OpenAI互換API: choices[0].message が空です');
+        return { error: true, errorCode: null, errorMessage: 'empty response' };
+      }
+
+      const toolCalls: OpenaiToolCall[] | undefined = Array.isArray(
+        assistantMessage.tool_calls
+      )
+        ? (assistantMessage.tool_calls as OpenaiToolCall[])
+        : undefined;
+
+      const contentText: string =
+        typeof assistantMessage.content === 'string'
+          ? assistantMessage.content
+          : '';
+
+      const assistantEntry: OpenaiAssistantMessage = {
+        role: 'assistant',
+        content: contentText,
+        ...(toolCalls && toolCalls.length > 0
+          ? { tool_calls: toolCalls }
+          : {}),
+      };
+      messages.push(assistantEntry);
+
+      const hasUsableToolCalls = !!toolCalls && toolCalls.length > 0;
+      if (!hasUsableToolCalls) {
+        responseText = contentText;
+        break;
+      }
+
+      // ツール呼び出しを実行
+      this.log(
+        `ツール呼び出し(round=${round}): ${toolCalls
+          .map((c) => `${c.function.name}(${c.function.arguments})`)
+          .join(', ')}`
+      );
+
+      const results = await Promise.all(
+        toolCalls.map(async (call) => {
+          const toolResult = await this.executeJinaToolCall(call, jinaApiKey, jinaConfig);
+          this.log(
+            `ツール結果(${call.function.name}, id=${call.id}): ${toolResult.slice(0, 200)}`
+          );
+          return { call, content: toolResult };
         })
-        .json();
+      );
 
-      this.log(JSON.stringify(res_data));
-
-      if (res_data.choices && res_data.choices.length > 0) {
-        responseText = res_data.choices[0].message?.content || '';
-      }
-    } catch (err: unknown) {
-      this.log('Error By Call OpenAI Compatible API');
-      let errorCode = null;
-      let errorMessage = null;
-
-      if (err && typeof err === 'object' && 'response' in err) {
-        const httpError = err as any;
-        errorCode = httpError.response?.statusCode;
-        errorMessage = httpError.response?.statusMessage || httpError.message;
+      for (const { call, content } of results) {
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          content,
+        });
       }
 
-      if (err instanceof Error) {
-        this.log(`${err.name}\n${err.message}\n${err.stack}`);
+      // 最終ラウンドの場合はツールを送らず、最終アシスタント本文を強制
+      if (isLastRound) {
+        this.log('最終ラウンドに到達したため、ツールなしで最終応答を取得します');
+        try {
+          const finalRes: any = await got
+            .post(apiUrl, {
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              json: { model, messages },
+              responseType: 'json',
+            })
+            .json();
+          const finalContent =
+            typeof finalRes?.choices?.[0]?.message?.content === 'string'
+              ? finalRes.choices[0].message.content
+              : '';
+          responseText = finalContent;
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            this.log(`最終ラウンド取得エラー: ${err.name} ${err.message}`);
+          }
+          responseText = contentText;
+        }
+        break;
       }
-
-      return { error: true, errorCode, errorMessage };
     }
 
     return responseText;
+  }
+
+  @bindThis
+  private async executeJinaToolCall(
+    call: OpenaiToolCall,
+    jinaApiKey: string | undefined,
+    jinaConfig: Config['jina']
+  ): Promise<string> {
+    if (call.function.name === JINA_TOOL_SEARCH) {
+      return this.executeJinaSearchCall(call, jinaApiKey, jinaConfig);
+    }
+    if (call.function.name === JINA_TOOL_READ) {
+      return this.executeJinaReadCall(call, jinaApiKey, jinaConfig);
+    }
+    return `Error: unknown tool "${call.function.name}".`;
+  }
+
+  @bindThis
+  private async executeJinaSearchCall(
+    call: OpenaiToolCall,
+    jinaApiKey: string | undefined,
+    jinaConfig: Config['jina']
+  ): Promise<string> {
+    let args: { query?: unknown };
+    try {
+      const parsed = JSON.parse(call.function.arguments || '{}');
+      if (!parsed || typeof parsed !== 'object') {
+        return 'Error: jina_search requires a JSON object argument.';
+      }
+      args = parsed as { query?: unknown };
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return `Error: jina_search arguments JSON parse failed: ${detail}`;
+    }
+
+    if (typeof args.query !== 'string' || args.query.trim() === '') {
+      return 'Error: jina_search requires a non-empty "query" string.';
+    }
+
+    if (!jinaApiKey) {
+      return 'Error: jina apiKey is not configured (set [jina].apiKey).';
+    }
+
+    return await jinaSearch(args.query, {
+      apiKey: jinaApiKey,
+      maxResults: jinaConfig?.search?.maxResults,
+    });
+  }
+
+  @bindThis
+  private async executeJinaReadCall(
+    call: OpenaiToolCall,
+    jinaApiKey: string | undefined,
+    jinaConfig: Config['jina']
+  ): Promise<string> {
+    let args: { url?: unknown };
+    try {
+      const parsed = JSON.parse(call.function.arguments || '{}');
+      if (!parsed || typeof parsed !== 'object') {
+        return 'Error: jina_read requires a JSON object argument.';
+      }
+      args = parsed as { url?: unknown };
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return `Error: jina_read arguments JSON parse failed: ${detail}`;
+    }
+
+    if (typeof args.url !== 'string' || args.url.trim() === '') {
+      return 'Error: jina_read requires a non-empty "url" string.';
+    }
+
+    return await jinaRead(args.url, {
+      apiKey: jinaApiKey,
+      tokenBudget: jinaConfig?.read?.tokenBudget,
+    });
   }
 
   @bindThis
@@ -1472,7 +1762,7 @@ export default class extends Module {
     const provider = this.getProvider();
     const apiKey = provider === 'openai'
       ? config.aiProvider?.openai?.apiKey
-      : config.gemini.apiKey;
+      : config.gemini?.apiKey;
     const apiUrl = provider === 'openai'
       ? `${config.aiProvider?.openai?.baseUrl || 'https://api.openai.com'}/v1/chat/completions`
       : GEMINI_API;
@@ -1616,7 +1906,7 @@ export default class extends Module {
     }
     const apiKey = provider === 'openai'
       ? config.aiProvider?.openai?.apiKey
-      : config.gemini.apiKey;
+      : config.gemini?.apiKey;
     const apiUrl = provider === 'openai'
       ? `${config.aiProvider?.openai?.baseUrl || 'https://api.openai.com'}/v1/chat/completions`
       : GEMINI_API;

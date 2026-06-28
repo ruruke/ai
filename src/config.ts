@@ -1,4 +1,4 @@
-type Config = {
+export type Config = {
   configVersion?: number; // 設定ファイルバージョン
   host: string;
   serverName?: string;
@@ -56,6 +56,21 @@ type Config = {
       enabled?: boolean;
       prompt?: string;
       groundingWithGoogleSearch?: boolean;
+    };
+  };
+  jina?: {
+    enabled?: boolean;
+    apiKey?: string;
+    search?: {
+      enabled?: boolean;
+      maxResults?: number; // 1-5
+    };
+    read?: {
+      enabled?: boolean;
+      tokenBudget?: number;
+    };
+    tool?: {
+      maxRounds?: number; // default 3
     };
   };
   mecab?: string;
