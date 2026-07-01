@@ -73,6 +73,17 @@ export type Config = {
       maxRounds?: number; // default 3
     };
   };
+  exa?: {
+    enabled?: boolean;
+    apiKey?: string;
+    search?: {
+      enabled?: boolean;
+      maxResults?: number; // 1-5
+    };
+    tool?: {
+      maxRounds?: number; // default 3
+    };
+  };
   mecab?: string;
   mecabDic?: string;
   memoryDir?: string;

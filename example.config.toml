@@ -170,6 +170,20 @@ tokenBudget = 0     # 読み取り時のトークン予算 (0 または未指定
 [jina.tool]
 maxRounds = 3 # ツール呼び出しの最大ラウンド数
 
+# Exa AI 検索設定（OpenAI互換プロバイダー使用時のみ有効）
+# api.exa.ai の検索APIをツール呼び出し経由で利用できるようにします。
+# apiKey がある場合のみ検索ツールが有効化されます。
+[exa]
+enabled = false # Exaツール機能の有効/無効
+apiKey = "token" # Exa APIキー（検索を使うために必須）
+
+[exa.search]
+enabled = true  # exa_search ツールを送信するか
+maxResults = 5  # 検索結果の最大件数 (1-5)
+
+[exa.tool]
+maxRounds = 3 # ツール呼び出しの最大ラウンド数
+
 # アップデートチェッカー設定
 [updateChecker]
 enabled = true

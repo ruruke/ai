@@ -7,7 +7,8 @@ import Message from '@/message.js';
 import { Note } from '@/misskey/note.js';
 import Module from '@/module.js';
 import serifs from '@/serifs.js';
-import { jinaRead, jinaSearch } from '@/utils/jina.js';
+import { jinaRead } from '@/utils/jina.js';
+import { exaSearch } from '@/utils/exa.js';
 import { plain } from '@/utils/mfm.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
@@ -183,7 +184,7 @@ const GROUNDING_TARGET = 'ggg';
 const geminiModel = config.gemini?.model || 'gemini-2.5-flash';
 const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
 
-const JINA_TOOL_SEARCH = 'jina_search';
+const EXA_TOOL_SEARCH = 'exa_search';
 const JINA_TOOL_READ = 'jina_read';
 
 // タイミング関連定数
@@ -989,30 +990,32 @@ export default class extends Module {
       return { error: true, errorCode: null, errorMessage: 'OpenAI API key is not configured' };
     }
 
-    // Jinaツールの構築
+    // Exa / Jina ツールの構築
+    const exaConfig = config.exa;
+    const exaEnabled = exaConfig?.enabled === true;
+    const exaApiKey = exaConfig?.apiKey;
+    const exaSearchEnabled = exaConfig?.search?.enabled !== false;
     const jinaConfig = config.jina;
     const jinaEnabled = jinaConfig?.enabled === true;
-    const jinaApiKey = jinaConfig?.apiKey;
-    const searchEnabled = jinaConfig?.search?.enabled !== false;
     const readEnabled = jinaConfig?.read?.enabled !== false;
-    const includeSearchTool = jinaEnabled && searchEnabled && !!jinaApiKey;
+    const includeExaSearchTool = exaEnabled && exaSearchEnabled && !!exaApiKey;
     const includeReadTool = jinaEnabled && readEnabled;
-    const includeAnyJinaTool = includeSearchTool || includeReadTool;
+    const includeAnyTool = includeExaSearchTool || includeReadTool;
 
-    if (jinaEnabled) {
+    if (exaEnabled || jinaEnabled) {
       this.log(
-        `Jinaツール設定: enabled=${jinaEnabled}, search=${includeSearchTool}, read=${includeReadTool}`
+        `OpenAI互換プロバイダーツール設定: exa_search=${includeExaSearchTool}, jina_read=${includeReadTool}`
       );
     }
 
     const tools: OpenaiFunctionTool[] = [];
-    if (includeSearchTool) {
+    if (includeExaSearchTool) {
       tools.push({
         type: 'function',
         function: {
-          name: JINA_TOOL_SEARCH,
+          name: EXA_TOOL_SEARCH,
           description:
-            'Jina AI でWeb検索を行い、上位の結果（タイトル/URL/本文）を取得します。最新の話題や外部情報を参照したいときに使ってください。',
+            'Exa でWeb検索を行い、上位の結果（タイトル/URL/ハイライト本文）を取得します。最新の話題や外部情報を参照したいときに使ってください。',
           parameters: {
             type: 'object',
             properties: {
@@ -1047,7 +1050,7 @@ export default class extends Module {
       });
     }
 
-    const maxRoundsRaw = jinaConfig?.tool?.maxRounds;
+    const maxRoundsRaw = exaConfig?.tool?.maxRounds ?? jinaConfig?.tool?.maxRounds;
     const parsedMaxRounds =
       typeof maxRoundsRaw === 'number' && !Number.isNaN(maxRoundsRaw)
         ? Math.floor(maxRoundsRaw)
@@ -1058,7 +1061,7 @@ export default class extends Module {
 
     for (let round = 0; round < maxRounds; round++) {
       const isLastRound = round === maxRounds - 1;
-      const sendTools = includeAnyJinaTool && !isLastRound;
+      const sendTools = includeAnyTool && !isLastRound;
 
       const openaiOptions: OpenaiOptions = {
         model,
@@ -1161,7 +1164,7 @@ export default class extends Module {
 
       const results = await Promise.all(
         effectiveToolCalls.map(async (call) => {
-          const toolResult = await this.executeJinaToolCall(call, jinaApiKey, jinaConfig);
+          const toolResult = await this.executeToolCall(call, exaConfig, jinaConfig);
           this.log(
             `ツール結果(${call.function.name}, id=${call.id}): ${toolResult.slice(0, 200)}`
           );
@@ -1210,49 +1213,48 @@ export default class extends Module {
   }
 
   @bindThis
-  private async executeJinaToolCall(
+  private async executeToolCall(
     call: OpenaiToolCall,
-    jinaApiKey: string | undefined,
+    exaConfig: Config['exa'],
     jinaConfig: Config['jina']
   ): Promise<string> {
-    if (call.function.name === JINA_TOOL_SEARCH) {
-      return this.executeJinaSearchCall(call, jinaApiKey, jinaConfig);
+    if (call.function.name === EXA_TOOL_SEARCH) {
+      return this.executeExaSearchCall(call, exaConfig);
     }
     if (call.function.name === JINA_TOOL_READ) {
-      return this.executeJinaReadCall(call, jinaApiKey, jinaConfig);
+      return this.executeJinaReadCall(call, jinaConfig?.apiKey, jinaConfig);
     }
     return `Error: unknown tool "${call.function.name}".`;
   }
 
   @bindThis
-  private async executeJinaSearchCall(
+  private async executeExaSearchCall(
     call: OpenaiToolCall,
-    jinaApiKey: string | undefined,
-    jinaConfig: Config['jina']
+    exaConfig: Config['exa']
   ): Promise<string> {
     let args: { query?: unknown };
     try {
       const parsed = JSON.parse(call.function.arguments || '{}');
       if (!parsed || typeof parsed !== 'object') {
-        return 'Error: jina_search requires a JSON object argument.';
+        return 'Error: exa_search requires a JSON object argument.';
       }
       args = parsed as { query?: unknown };
     } catch (err: unknown) {
       const detail = err instanceof Error ? err.message : String(err);
-      return `Error: jina_search arguments JSON parse failed: ${detail}`;
+      return `Error: exa_search arguments JSON parse failed: ${detail}`;
     }
 
     if (typeof args.query !== 'string' || args.query.trim() === '') {
-      return 'Error: jina_search requires a non-empty "query" string.';
+      return 'Error: exa_search requires a non-empty "query" string.';
     }
 
-    if (!jinaApiKey) {
-      return 'Error: jina apiKey is not configured (set [jina].apiKey).';
+    if (!exaConfig?.apiKey) {
+      return 'Error: exa apiKey is not configured (set [exa].apiKey).';
     }
 
-    return await jinaSearch(args.query, {
-      apiKey: jinaApiKey,
-      maxResults: jinaConfig?.search?.maxResults,
+    return await exaSearch(args.query, {
+      apiKey: exaConfig.apiKey,
+      maxResults: exaConfig?.search?.maxResults,
     });
   }
 
