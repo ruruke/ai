@@ -11,6 +11,7 @@ import { jinaRead, jinaSearch } from '@/utils/jina.js';
 import { plain } from '@/utils/mfm.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
+import { parseToolCallsFromContent } from './tool-call-parser.js';
 
 type AiChat = {
   question: string;
@@ -1110,41 +1111,56 @@ export default class extends Module {
         return { error: true, errorCode: null, errorMessage: 'empty response' };
       }
 
-      const toolCalls: OpenaiToolCall[] | undefined = Array.isArray(
+      const structuredToolCalls: OpenaiToolCall[] | undefined = Array.isArray(
         assistantMessage.tool_calls
       )
         ? (assistantMessage.tool_calls as OpenaiToolCall[])
         : undefined;
 
-      const contentText: string =
+      let contentText: string =
         typeof assistantMessage.content === 'string'
           ? assistantMessage.content
           : '';
 
+      let effectiveToolCalls: OpenaiToolCall[] = structuredToolCalls ?? [];
+      if (effectiveToolCalls.length === 0) {
+        const parsed = parseToolCallsFromContent(contentText, {
+          warn: (msg) => this.log(msg),
+        });
+        if (parsed.toolCalls.length > 0) {
+          effectiveToolCalls = parsed.toolCalls as OpenaiToolCall[];
+          contentText = parsed.cleanedContent;
+          this.log(
+            `content内のtool call markupを検出: ${effectiveToolCalls
+              .map((c) => `${c.function.name}(${c.function.arguments})`)
+              .join(', ')}`
+          );
+        }
+      }
+
       const assistantEntry: OpenaiAssistantMessage = {
         role: 'assistant',
         content: contentText,
-        ...(toolCalls && toolCalls.length > 0
-          ? { tool_calls: toolCalls }
+        ...(effectiveToolCalls.length > 0
+          ? { tool_calls: effectiveToolCalls }
           : {}),
       };
       messages.push(assistantEntry);
 
-      const hasUsableToolCalls = !!toolCalls && toolCalls.length > 0;
-      if (!hasUsableToolCalls) {
+      if (effectiveToolCalls.length === 0) {
         responseText = contentText;
         break;
       }
 
       // ツール呼び出しを実行
       this.log(
-        `ツール呼び出し(round=${round}): ${toolCalls
+        `ツール呼び出し(round=${round}): ${effectiveToolCalls
           .map((c) => `${c.function.name}(${c.function.arguments})`)
           .join(', ')}`
       );
 
       const results = await Promise.all(
-        toolCalls.map(async (call) => {
+        effectiveToolCalls.map(async (call) => {
           const toolResult = await this.executeJinaToolCall(call, jinaApiKey, jinaConfig);
           this.log(
             `ツール結果(${call.function.name}, id=${call.id}): ${toolResult.slice(0, 200)}`
